@@ -117,3 +117,24 @@
     opacity: 0;
   }
 }
+
+@keyframes caretBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.custom-caret {
+  position: relative;
+}
+
+.custom-caret::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10%;
+  height: 80%;
+  width: 2px;
+  background-color: #22d3ee; /* cyan-400 */
+  animation: caretBlink 0.9s infinite;
+}
+

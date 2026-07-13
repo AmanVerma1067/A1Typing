@@ -14,43 +14,83 @@ import { PerformanceModal } from "@/components/performance-modal"
 import { ConfettiEffect } from "@/components/confetti-effect"
 
 const textSamples = {
-  short: [
-    "The quick brown fox jumps over the lazy dog.",
-    "Hello world, this is a typing test for you.",
-    "Practice makes perfect in every skill you learn.",
-    "Time flies when you are having fun with friends.",
-    "Success comes to those who work hard every day.",
-    "The sun shines bright on a beautiful morning.",
-    "Coffee tastes better when shared with good company.",
-    "Dreams become reality through persistent effort.",
-    "Knowledge is power when applied with wisdom.",
-    "Life is beautiful when you appreciate small things.",
+  homeRow: [
+    "ask a lad all alfalfa salads",
+    "a sad lad shall fall glad",
+    "has a glad lad a glass flask",
+    "ash falls as a lash dashes",
+    "all lads shall ask a glass",
+    "glad lads shall flash a glass flask",
+    "ask a dad as a lad falls",
+    "dallas lads had a alfalfa salad",
+    "a glass flask had all alfalfa",
+    "shall a lad ask a dad",
+    "sad lads shall slash alfalfa",
+    "has a dad a glad glass flask",
+    "ask a glad lad to flash glass",
+    "a sad lad had a glass flask",
+    "alfalfa salads had all glass",
   ],
-  medium: [
-    "The art of programming requires patience, logic, and continuous learning habits that develop over time.",
-    "Technology has revolutionized the way we communicate and work in modern times across the globe.",
-    "Innovation distinguishes between a leader and a follower in any field of human endeavor today.",
-    "Every great achievement was once considered impossible until someone had the courage to try it.",
-    "The future belongs to those who believe in the beauty of their dreams and work toward them.",
-    "Success is not final, failure is not fatal, it is the courage to continue that counts most.",
-    "Education is the most powerful weapon which you can use to change the world around you.",
-    "The only way to do great work is to love what you do and pursue it with passion.",
-    "Life is what happens to you while you are busy making other plans for your future.",
-    "In the middle of difficulty lies opportunity waiting to be discovered by the prepared mind.",
+  upperRow: [
+    "we write typewriters to you",
+    "our power route put your pet to putter",
+    "try to type your proprietary report yet",
+    "we try to wet our outer top pure pipe",
+    "pepper your pot to pour wet tea",
+    "you type prior poetry to popular peer",
+    "we worry our pure puppy will weep",
+    "try to write your poetry prior to power",
+    "typewriters write our power route",
+    "our puppy will try to pour wet tea",
+    "your peer will type priority reports",
+    "we put our pot to pour wet tea",
   ],
-  long: [
-    "The quick brown fox jumps over the lazy dog and runs through the dense forest, leaping over fallen logs and dodging low-hanging branches while the morning sun filters through the canopy above, creating a magical atmosphere that fills the woodland with golden light and dancing shadows.",
-    "In the rapidly evolving world of technology, artificial intelligence and machine learning have become integral parts of our daily lives, transforming industries from healthcare and finance to transportation and entertainment, while simultaneously raising important questions about privacy, ethics, and the future of human employment in an increasingly automated society.",
-    "The ancient art of storytelling has been passed down through generations, serving as a bridge between cultures and a means of preserving history, wisdom, and human experience, from the oral traditions of indigenous peoples to the digital narratives of the modern age, reminding us that at our core, we are all connected by the universal need to share and understand our place in the world.",
-    "Climate change represents one of the most pressing challenges of our time, requiring unprecedented global cooperation and innovative solutions that span renewable energy technologies, sustainable agriculture practices, and fundamental changes in how we consume resources, while also demanding that we reimagine our relationship with the natural world and take responsibility for the planet we leave to future generations.",
-    "The human brain, with its billions of interconnected neurons, remains one of the most complex and mysterious structures in the known universe, capable of creativity, emotion, abstract thought, and consciousness itself, yet still largely unexplored in terms of its full potential and the mechanisms that give rise to our subjective experience of reality and self-awareness.",
-    "Throughout history, music has served as a universal language that transcends cultural boundaries and speaks directly to the human soul, from the rhythmic drumbeats of ancient ceremonies to the complex symphonies of classical composers, and from the rebellious spirit of rock and roll to the innovative sounds of electronic music, proving that melody and rhythm are fundamental aspects of human expression and connection.",
-    "The exploration of space has captured human imagination for centuries, driving us to push the boundaries of science and technology in our quest to understand our place in the cosmos, from the first tentative steps beyond Earth's atmosphere to the ambitious plans for establishing permanent settlements on Mars and beyond, representing humanity's eternal desire to explore, discover, and expand our horizons.",
-    "The digital revolution has fundamentally transformed how we access, process, and share information, creating unprecedented opportunities for education, collaboration, and innovation while also presenting new challenges related to information overload, digital privacy, cybersecurity, and the need to develop critical thinking skills in an era where anyone can publish content and misinformation can spread as quickly as truth.",
+  lowerRow: [
+    "men can move vm bnb mm",
+    "nbc vancouver man can mimic nx",
+    "men mimic common civic cv",
+    "cox can bob bmx cox",
+    "vancouver men mimic common civic bnb",
+    "men can mimic nbc vancouver cox",
+    "bob can move common civic bmx",
+    "mimic common men cv nbc",
   ],
+  fullKeyboard: [
+    "the quick brown fox jumps over the lazy dog",
+    "hello world this is a typing test for you",
+    "practice makes perfect in every skill you learn",
+    "time flies when you are having fun with friends",
+    "success comes to those who work hard every day",
+    "the sun shines bright on a beautiful morning",
+    "coffee tastes better when shared with good company",
+    "dreams become reality through persistent effort",
+    "knowledge is power when applied with wisdom",
+    "life is beautiful when you appreciate small things",
+    "actions speak louder than words in life",
+    "all that glitters is not gold in the end",
+    "honesty is the best policy for a happy life",
+    "make hay while the sun shines my friend",
+    "where there is a will there is a way",
+    "birds of a feather flock together always",
+    "every cloud has a silver lining to find",
+    "haste makes waste so take it slow and steady",
+    "look before you leap into the deep blue",
+    "a stitch in time saves nine in the long run",
+    "knowledge is a treasure but practice is the key",
+    "you only live once but if you do it right once is enough",
+    "to be or not to be that is the question we ask",
+    "the only constant in life is change they say",
+    "happiness depends upon ourselves and our minds",
+    "well begun is half done in any project",
+    "better late than never is a good rule to keep",
+    "cleanliness is next to godliness they say",
+    "laughter is the best medicine for the soul",
+    "don't judge a book by its cover at first sight",
+  ]
 }
 
 type Difficulty = "short" | "medium" | "long"
+type KeyboardMode = "home" | "upper" | "lower" | "full"
 type SwitchType = "blue" | "brown" | "red"
 
 interface TypingSettings {
@@ -77,6 +117,7 @@ const difficultySettings = {
 
 export default function TypingTest() {
   const [difficulty, setDifficulty] = useState<Difficulty>("medium")
+  const [keyboardMode, setKeyboardMode] = useState<KeyboardMode>("full")
   const [currentText, setCurrentText] = useState("")
   const [userInput, setUserInput] = useState("")
   const [isActive, setIsActive] = useState(false)
@@ -158,16 +199,32 @@ export default function TypingTest() {
 
   // Generate new text sample
   const generateNewText = useCallback(() => {
-    const samples = textSamples[difficulty]
-    const randomIndex = Math.floor(Math.random() * samples.length)
-    setCurrentText(samples[randomIndex])
-    setCurrentTextIndex(randomIndex)
-  }, [difficulty])
+    let sourceList: string[] = []
+    if (keyboardMode === "home") {
+      sourceList = textSamples.homeRow
+    } else if (keyboardMode === "upper") {
+      sourceList = textSamples.upperRow
+    } else if (keyboardMode === "lower") {
+      sourceList = textSamples.lowerRow
+    } else {
+      sourceList = textSamples.fullKeyboard
+    }
 
-  // Initialize with random text
-  useEffect(() => {
-    generateNewText()
-  }, [generateNewText])
+    // Determine sentence count based on difficulty
+    let count = 4
+    if (difficulty === "short") count = 3
+    else if (difficulty === "medium") count = 6
+    else if (difficulty === "long") count = 12
+
+    const selected: string[] = []
+    for (let i = 0; i < count; i++) {
+      const idx = Math.floor(Math.random() * sourceList.length)
+      selected.push(sourceList[idx])
+    }
+
+    const combined = selected.join(" ").toLowerCase()
+    setCurrentText(combined)
+  }, [difficulty, keyboardMode])
 
   // Mechanical Keyboard Sound Synthesizer using Web Audio API
   const playMechanicalClick = useCallback(
@@ -453,6 +510,11 @@ export default function TypingTest() {
     }, 30)
   }, [difficulty, generateNewText])
 
+  // Trigger reset/restart when settings change or on mount
+  useEffect(() => {
+    startTest()
+  }, [startTest])
+
   const endTest = useCallback(() => {
     setIsActive(false)
     setIsComplete(true)
@@ -603,7 +665,7 @@ export default function TypingTest() {
           className += "text-[#ef4444] bg-[#ef4444]/10 line-through" // incorrect: red + strikethrough
         }
       } else if (index === userInput.length) {
-        className += "text-[#38bdf8] bg-[#38bdf8]/15 animate-pulse" // active caret position
+        className += "text-[#38bdf8] bg-[#38bdf8]/15 custom-caret font-bold" // active custom-caret position
       } else {
         className += "text-slate-600" // untyped characters: muted dark slate
       }
@@ -613,7 +675,6 @@ export default function TypingTest() {
           key={index}
           className={className}
           style={{
-            borderLeft: index === userInput.length ? "2px solid #38bdf8" : "2px solid transparent",
             paddingLeft: "1px",
             paddingRight: "1px",
           }}
@@ -729,46 +790,69 @@ export default function TypingTest() {
           </div>
         </div>
 
-        {/* Difficulty Selector */}
-        <Card className="mb-6 bg-[#161622] border-slate-800 shadow-md">
-          <CardHeader className="py-4">
-            <CardTitle className="text-sm font-semibold text-slate-400 flex items-center gap-2">
-              <Timer className="w-4 h-4 text-cyan-400" />
-              Test Duration Mode
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pb-4">
-            <div className="flex gap-2 flex-wrap">
-              {Object.entries(difficultySettings).map(([key, setting]) => (
-                <Button
-                  key={key}
-                  variant={difficulty === key ? "default" : "outline"}
-                  onClick={() => {
-                    setDifficulty(key as Difficulty)
-                    setDifficulty((prev) => {
-                      // Trigger startTest configuration changes safely
-                      setTimeLeft(difficultySettings[key as Difficulty].duration)
-                      generateNewText()
-                      setUserInput("")
-                      setIsActive(false)
-                      setIsComplete(false)
-                      setWpm(0)
-                      return key as Difficulty
-                    })
-                  }}
-                  disabled={isActive}
-                  className={`transition-all py-1 px-4 text-xs font-semibold ${
-                    difficulty === key
-                      ? "bg-cyan-500 hover:bg-cyan-600 text-white shadow-sm"
-                      : "border-slate-800 bg-[#0f0f15] hover:bg-slate-800 text-slate-300"
-                  }`}
-                >
-                  {setting.label}
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Selector Panel */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          {/* Difficulty Selector */}
+          <Card className="bg-[#161622] border-slate-800 shadow-md">
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-xs font-semibold text-slate-400 flex items-center gap-2">
+                <Timer className="w-4 h-4 text-cyan-400" />
+                Test Duration Mode
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pb-3 px-4">
+              <div className="flex gap-2 flex-wrap">
+                {Object.entries(difficultySettings).map(([key, setting]) => (
+                  <Button
+                    key={key}
+                    variant={difficulty === key ? "default" : "outline"}
+                    onClick={() => {
+                      setDifficulty(key as Difficulty)
+                      setTimeLeft(setting.duration)
+                    }}
+                    disabled={isActive}
+                    className={`transition-all py-1 px-3 text-[11px] font-semibold h-7 ${
+                      difficulty === key
+                        ? "bg-cyan-500 hover:bg-cyan-600 text-white shadow-sm"
+                        : "border-slate-800 bg-[#0f0f15] hover:bg-slate-800 text-slate-300"
+                    }`}
+                  >
+                    {setting.label}
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Keyboard Practice Selector */}
+          <Card className="bg-[#161622] border-slate-800 shadow-md">
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-xs font-semibold text-slate-400 flex items-center gap-2">
+                <Keyboard className="w-4 h-4 text-cyan-400" />
+                Keyboard Focus Category
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pb-3 px-4">
+              <div className="flex gap-1.5 flex-wrap">
+                {(["home", "upper", "lower", "full"] as const).map((mode) => (
+                  <Button
+                    key={mode}
+                    variant={keyboardMode === mode ? "default" : "outline"}
+                    onClick={() => setKeyboardMode(mode)}
+                    disabled={isActive}
+                    className={`transition-all py-1 px-2.5 text-[11px] font-semibold h-7 capitalize ${
+                      keyboardMode === mode
+                        ? "bg-cyan-500 hover:bg-cyan-600 text-white shadow-sm"
+                        : "border-slate-800 bg-[#0f0f15] hover:bg-slate-800 text-slate-300"
+                    }`}
+                  >
+                    {mode === "home" ? "Home Row" : mode === "upper" ? "Upper Row" : mode === "lower" ? "Lower Row" : "Full Keyboard"}
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Dynamic WPM Stats & Flow state visualizer */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -810,7 +894,10 @@ export default function TypingTest() {
         )}
 
         {/* Main Test Area with Flow State Glow */}
-        <Card className={`mb-6 bg-[#161622] border-slate-800 transition-all duration-500 ${isActive ? flow.class : ""}`}>
+        <Card
+          className={`mb-6 bg-[#161622] border-slate-800 transition-all duration-500 cursor-text select-none ${isActive ? flow.class : ""}`}
+          onClick={() => inputRef.current?.focus()}
+        >
           <CardContent className="p-6 relative">
             {/* Elegant Flow State Badge */}
             {isActive && (
@@ -822,18 +909,27 @@ export default function TypingTest() {
             )}
 
             {/* Passage Display */}
-            <div className="leading-relaxed mb-6 p-6 bg-[#0f0f15] border border-slate-900 rounded-xl shadow-inner select-none whitespace-pre-wrap tracking-wide font-mono">
-              {renderText()}
+            <div className="leading-relaxed p-6 bg-[#0f0f15] border border-slate-900 rounded-xl shadow-inner select-none whitespace-pre-wrap tracking-wide font-mono relative min-h-[140px] flex items-center justify-center">
+              <div className="w-full text-left">
+                {renderText()}
+              </div>
+              {!isActive && userInput.length === 0 && (
+                <div className="absolute inset-0 flex items-center justify-center bg-[#0f0f15]/95 rounded-xl border border-dashed border-slate-850 transition-all duration-300">
+                  <span className="text-slate-400 font-sans text-sm animate-pulse flex items-center gap-2">
+                    <Keyboard className="w-4 h-4 text-cyan-400" />
+                    Click here or start typing to begin...
+                  </span>
+                </div>
+              )}
             </div>
 
-            {/* High Contrast Dark Input Bar */}
+            {/* Hidden Input box to capture typing events */}
             <input
               ref={inputRef}
               type="text"
               value={userInput}
               onChange={handleInputChange}
-              placeholder={isActive ? "" : "Start typing here or press [Tab] to begin..."}
-              className="w-full p-4 text-lg font-mono bg-[#0f0f15] border border-slate-800 text-slate-100 rounded-xl focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/10 transition-all shadow-inner placeholder:text-slate-600"
+              className="absolute opacity-0 w-0 h-0 pointer-events-none"
               autoComplete="off"
               spellCheck="false"
             />
