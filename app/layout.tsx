@@ -5,14 +5,18 @@ import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"] })
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+}
+
 export const metadata: Metadata = {
   title: "A1Typing - Master Your Typing Skills",
   description:
     "Improve your typing speed and accuracy with A1Typing - the ultimate typing test application with real-time feedback, multiple difficulty levels, and progress tracking.",
   keywords: "typing test, typing speed, WPM, words per minute, typing practice, keyboard skills",
   authors: [{ name: "A1Typing Team" }],
-  viewport: "width=device-width, initial-scale=1",
-    generator: 'v0.dev'
+  generator: 'v0.dev'
 }
 
 export default function RootLayout({

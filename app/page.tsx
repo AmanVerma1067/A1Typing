@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import { Moon, Sun, Trophy, Timer, Target, Zap, Settings, BarChart3, Volume2, VolumeX } from "lucide-react"
+import { Trophy, Timer, Target, Zap, Settings, BarChart3, Volume2, VolumeX, Keyboard, RotateCcw } from "lucide-react"
 import { PerformanceModal } from "@/components/performance-modal"
 import { ConfettiEffect } from "@/components/confetti-effect"
 
@@ -51,10 +51,10 @@ const textSamples = {
 }
 
 type Difficulty = "short" | "medium" | "long"
-type Theme = "light" | "dark"
+type SwitchType = "blue" | "brown" | "red"
 
 interface TypingSettings {
-  rgbEffects: boolean
+  switchType: SwitchType
   audioEnabled: boolean
   soundVolume: number
 }
@@ -76,7 +76,6 @@ const difficultySettings = {
 }
 
 export default function TypingTest() {
-  const [theme, setTheme] = useState<Theme>("light")
   const [difficulty, setDifficulty] = useState<Difficulty>("medium")
   const [currentText, setCurrentText] = useState("")
   const [userInput, setUserInput] = useState("")
@@ -88,7 +87,6 @@ export default function TypingTest() {
   const [isComplete, setIsComplete] = useState(false)
   const [correctChars, setCorrectChars] = useState(0)
   const [totalChars, setTotalChars] = useState(0)
-  const [startTime, setStartTime] = useState<number | null>(null)
   const [showConfetti, setShowConfetti] = useState(false)
   const [performanceData, setPerformanceData] = useState<PerformanceData | null>(null)
   const [wpmHistory, setWpmHistory] = useState<number[]>([])
@@ -98,27 +96,52 @@ export default function TypingTest() {
   const [currentTextIndex, setCurrentTextIndex] = useState(0)
 
   const [settings, setSettings] = useState<TypingSettings>({
-    rgbEffects: true,
+    switchType: "blue",
     audioEnabled: true,
     soundVolume: 0.3,
   })
 
   const inputRef = useRef<HTMLInputElement>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
-  const backgroundRef = useRef<HTMLDivElement>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
+  const startTimeRef = useRef<number | null>(null)
 
-  // Load saved data on mount
+  // Keep stats in ref to avoid stale closures in stable callbacks
+  const statsRef = useRef({
+    correctChars: 0,
+    totalChars: 0,
+    accuracy: 100,
+    wpm: 0,
+    characterBreakdown: [] as Array<{ char: string; correct: boolean; timestamp: number }>,
+  })
+
   useEffect(() => {
-    const savedTheme = localStorage.getItem("a1typing-theme") as Theme
+    statsRef.current = {
+      correctChars,
+      totalChars,
+      accuracy,
+      wpm,
+      characterBreakdown,
+    }
+  }, [correctChars, totalChars, accuracy, wpm, characterBreakdown])
+
+  // Load saved data and force dark mode on mount
+  useEffect(() => {
     const savedHighScore = localStorage.getItem("a1typing-highscore")
     const savedSettings = localStorage.getItem("a1typing-settings")
 
-    if (savedTheme) setTheme(savedTheme)
     if (savedHighScore) setHighScore(Number.parseInt(savedHighScore))
-    if (savedSettings) setSettings(JSON.parse(savedSettings))
+    if (savedSettings) {
+      try {
+        const parsed = JSON.parse(savedSettings)
+        if (!parsed.switchType) parsed.switchType = "blue"
+        setSettings(parsed)
+      } catch (e) {
+        // use default settings
+      }
+    }
 
-    document.documentElement.classList.toggle("dark", savedTheme === "dark")
+    document.documentElement.classList.add("dark")
   }, [])
 
   // Initialize audio context
@@ -141,59 +164,210 @@ export default function TypingTest() {
     generateNewText()
   }, [generateNewText])
 
-  // Auto-load new text when time expires
-  const loadNextText = useCallback(() => {
-    const samples = textSamples[difficulty]
-    const nextIndex = (currentTextIndex + 1) % samples.length
-    setCurrentText(samples[nextIndex])
-    setCurrentTextIndex(nextIndex)
-  }, [difficulty, currentTextIndex])
-
-  // Play audio feedback
-  const playSound = useCallback(
-    (frequency: number, duration = 0.1) => {
+  // Mechanical Keyboard Sound Synthesizer using Web Audio API
+  const playMechanicalClick = useCallback(
+    (type: SwitchType, isError: boolean) => {
       if (!settings.audioEnabled || !audioContextRef.current) return
+      const ctx = audioContextRef.current
+      if (ctx.state === "suspended") {
+        ctx.resume()
+      }
+      const now = ctx.currentTime
+      const volume = settings.soundVolume
+      const pitchRandom = Math.random() * 80 - 40 // subtle natural pitch variation
 
-      const oscillator = audioContextRef.current.createOscillator()
-      const gainNode = audioContextRef.current.createGain()
+      if (isError) {
+        // High-friction flat mistake sound
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        const filter = ctx.createBiquadFilter()
 
-      oscillator.connect(gainNode)
-      gainNode.connect(audioContextRef.current.destination)
+        osc.type = "sawtooth"
+        osc.frequency.setValueAtTime(120, now)
 
-      oscillator.frequency.setValueAtTime(frequency, audioContextRef.current.currentTime)
-      oscillator.type = "sine"
+        gain.gain.setValueAtTime(0, now)
+        gain.gain.linearRampToValueAtTime(volume * 1.1, now + 0.005)
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15)
 
-      gainNode.gain.setValueAtTime(0, audioContextRef.current.currentTime)
-      gainNode.gain.linearRampToValueAtTime(settings.soundVolume, audioContextRef.current.currentTime + 0.01)
-      gainNode.gain.exponentialRampToValueAtTime(0.001, audioContextRef.current.currentTime + duration)
+        filter.type = "lowpass"
+        filter.frequency.setValueAtTime(320, now)
 
-      oscillator.start(audioContextRef.current.currentTime)
-      oscillator.stop(audioContextRef.current.currentTime + duration)
+        osc.connect(filter)
+        filter.connect(gain)
+        gain.connect(ctx.destination)
+
+        osc.start(now)
+        osc.stop(now + 0.16)
+        return
+      }
+
+      if (type === "blue") {
+        // Cherry MX Blue (Double click transient + high-frequency release tick)
+        const click1 = ctx.createOscillator()
+        const click1Gain = ctx.createGain()
+        click1.type = "triangle"
+        click1.frequency.setValueAtTime(2100 + pitchRandom, now)
+
+        click1Gain.gain.setValueAtTime(0, now)
+        click1Gain.gain.linearRampToValueAtTime(volume * 0.7, now + 0.001)
+        click1Gain.gain.exponentialRampToValueAtTime(0.001, now + 0.009)
+
+        click1.connect(click1Gain)
+        click1Gain.connect(ctx.destination)
+        click1.start(now)
+        click1.stop(now + 0.015)
+
+        const click2 = ctx.createOscillator()
+        const click2Gain = ctx.createGain()
+        click2.type = "sine"
+        click2.frequency.setValueAtTime(1700 + pitchRandom, now + 0.005)
+
+        click2Gain.gain.setValueAtTime(0, now + 0.005)
+        click2Gain.gain.linearRampToValueAtTime(volume * 0.4, now + 0.006)
+        click2Gain.gain.exponentialRampToValueAtTime(0.001, now + 0.014)
+
+        click2.connect(click2Gain)
+        click2Gain.connect(ctx.destination)
+        click2.start(now + 0.005)
+        click2.stop(now + 0.018)
+
+        const thock = ctx.createOscillator()
+        const thockGain = ctx.createGain()
+        thock.type = "sine"
+        thock.frequency.setValueAtTime(330 + pitchRandom * 0.1, now)
+
+        thockGain.gain.setValueAtTime(0, now)
+        thockGain.gain.linearRampToValueAtTime(volume * 0.3, now + 0.003)
+        thockGain.gain.exponentialRampToValueAtTime(0.001, now + 0.05)
+
+        thock.connect(thockGain)
+        thockGain.connect(ctx.destination)
+        thock.start(now)
+        thock.stop(now + 0.06)
+
+      } else if (type === "brown") {
+        // Cherry MX Brown (Rounded click + mid-frequency resonance)
+        const click = ctx.createOscillator()
+        const clickGain = ctx.createGain()
+        click.type = "triangle"
+        click.frequency.setValueAtTime(1050 + pitchRandom, now)
+
+        clickGain.gain.setValueAtTime(0, now)
+        clickGain.gain.linearRampToValueAtTime(volume * 0.45, now + 0.002)
+        clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.011)
+
+        click.connect(clickGain)
+        clickGain.connect(ctx.destination)
+        click.start(now)
+        click.stop(now + 0.014)
+
+        const thock = ctx.createOscillator()
+        const thockGain = ctx.createGain()
+        thock.type = "sine"
+        thock.frequency.setValueAtTime(225 + pitchRandom * 0.1, now)
+
+        thockGain.gain.setValueAtTime(0, now)
+        thockGain.gain.linearRampToValueAtTime(volume * 0.4, now + 0.004)
+        thockGain.gain.exponentialRampToValueAtTime(0.001, now + 0.075)
+
+        thock.connect(thockGain)
+        thockGain.connect(ctx.destination)
+        thock.start(now)
+        thock.stop(now + 0.08)
+
+      } else if (type === "red") {
+        // Cherry MX Red (Linear switch, quiet thock, no click transient)
+        const click = ctx.createOscillator()
+        const clickGain = ctx.createGain()
+        click.type = "sine"
+        click.frequency.setValueAtTime(750 + pitchRandom, now)
+
+        clickGain.gain.setValueAtTime(0, now)
+        clickGain.gain.linearRampToValueAtTime(volume * 0.25, now + 0.002)
+        clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.007)
+
+        click.connect(clickGain)
+        clickGain.connect(ctx.destination)
+        click.start(now)
+        click.stop(now + 0.01)
+
+        const thock = ctx.createOscillator()
+        const thockGain = ctx.createGain()
+        thock.type = "sine"
+        thock.frequency.setValueAtTime(165 + pitchRandom * 0.1, now)
+
+        thockGain.gain.setValueAtTime(0, now)
+        thockGain.gain.linearRampToValueAtTime(volume * 0.45, now + 0.004)
+        thockGain.gain.exponentialRampToValueAtTime(0.001, now + 0.11)
+
+        thock.connect(thockGain)
+        thockGain.connect(ctx.destination)
+        thock.start(now)
+        thock.stop(now + 0.12)
+      }
     },
-    [settings.audioEnabled, settings.soundVolume],
+    [settings.audioEnabled, settings.soundVolume]
   )
 
-  // RGB background effect
-  const triggerRGBEffect = useCallback(() => {
-    if (!settings.rgbEffects || !backgroundRef.current) return
+  // Start sound synthesizer chime
+  const playStartChime = useCallback(() => {
+    if (!settings.audioEnabled || !audioContextRef.current) return
+    const ctx = audioContextRef.current
+    if (ctx.state === "suspended") ctx.resume()
+    const now = ctx.currentTime
+    const volume = settings.soundVolume
 
-    const colors = [
-      "from-red-500/20 via-purple-500/20 to-blue-500/20",
-      "from-green-500/20 via-blue-500/20 to-purple-500/20",
-      "from-yellow-500/20 via-red-500/20 to-pink-500/20",
-      "from-blue-500/20 via-green-500/20 to-yellow-500/20",
-      "from-purple-500/20 via-pink-500/20 to-red-500/20",
-    ]
+    const osc1 = ctx.createOscillator()
+    const osc2 = ctx.createOscillator()
+    const gain = ctx.createGain()
 
-    const randomColor = colors[Math.floor(Math.random() * colors.length)]
-    backgroundRef.current.className = `fixed inset-0 bg-gradient-to-br ${randomColor} transition-all duration-500 ease-out transform scale-105 -z-10`
+    osc1.type = "sine"
+    osc1.frequency.setValueAtTime(523.25, now) // C5
+    osc1.frequency.exponentialRampToValueAtTime(659.25, now + 0.08) // E5
 
-    setTimeout(() => {
-      if (backgroundRef.current) {
-        backgroundRef.current.className = `fixed inset-0 bg-gradient-to-br from-transparent to-transparent transition-all duration-1000 ease-out -z-10`
-      }
-    }, 200)
-  }, [settings.rgbEffects])
+    osc2.type = "sine"
+    osc2.frequency.setValueAtTime(659.25, now) // E5
+    osc2.frequency.exponentialRampToValueAtTime(783.99, now + 0.08) // G5
+
+    gain.gain.setValueAtTime(0, now)
+    gain.gain.linearRampToValueAtTime(volume * 0.4, now + 0.008)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12)
+
+    osc1.connect(gain)
+    osc2.connect(gain)
+    gain.connect(ctx.destination)
+
+    osc1.start(now)
+    osc2.start(now)
+    osc1.stop(now + 0.12)
+    osc2.stop(now + 0.12)
+  }, [settings.audioEnabled, settings.soundVolume])
+
+  // Completion sound synthesizer chime (arpeggio)
+  const playCompleteChime = useCallback(() => {
+    if (!settings.audioEnabled || !audioContextRef.current) return
+    const ctx = audioContextRef.current
+    if (ctx.state === "suspended") ctx.resume()
+    const now = ctx.currentTime
+    const volume = settings.soundVolume
+
+    const notes = [523.25, 659.25, 783.99, 1046.5]
+    notes.forEach((freq, index) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = "sine"
+      osc.frequency.setValueAtTime(freq, now + index * 0.05)
+
+      gain.gain.setValueAtTime(0, now + index * 0.05)
+      gain.gain.linearRampToValueAtTime(volume * 0.3, now + index * 0.05 + 0.004)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.05 + 0.18)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(now + index * 0.05)
+      osc.stop(now + index * 0.05 + 0.18)
+    })
+  }, [settings.audioEnabled, settings.soundVolume])
 
   // Timer logic
   useEffect(() => {
@@ -201,36 +375,20 @@ export default function TypingTest() {
       timerRef.current = setTimeout(() => {
         setTimeLeft(timeLeft - 1)
       }, 1000)
-    } else if (timeLeft === 0) {
-      if (userInput.length < currentText.length) {
-        loadNextText()
-        setTimeLeft(difficultySettings[difficulty].duration)
-      } else {
-        endTest()
-      }
+    } else if (timeLeft === 0 && isActive) {
+      endTest()
     }
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [isActive, timeLeft, userInput.length, currentText.length, difficulty, loadNextText])
+  }, [isActive, timeLeft])
 
   // Enhanced WPM calculation with smoothing
   useEffect(() => {
-    if (isActive && startTime) {
-      const timeElapsed = (Date.now() - startTime) / 1000 / 60 // minutes
-      const correctCharCount = correctChars
-      const currentWpm = timeElapsed > 0 ? Math.round(correctCharCount / 5 / timeElapsed) : 0
+    if (isActive && startTimeRef.current) {
+      const timeElapsed = (Date.now() - startTimeRef.current) / 1000 / 60 // minutes
 
-      // Add to history for smoothing
-      setWpmHistory((prev) => {
-        const newHistory = [...prev, currentWpm].slice(-5) // Keep last 5 readings
-        const smoothedWpm = Math.round(newHistory.reduce((a, b) => a + b, 0) / newHistory.length)
-        setWpm(smoothedWpm)
-        return newHistory
-      })
-
-      // Calculate accuracy
       let correct = 0
       const breakdown: Array<{ char: string; correct: boolean; timestamp: number }> = []
 
@@ -251,13 +409,23 @@ export default function TypingTest() {
 
       const currentAccuracy = userInput.length > 0 ? Math.round((correct / userInput.length) * 100) : 100
       setAccuracy(currentAccuracy)
-    }
-  }, [userInput, isActive, startTime, currentText, correctChars])
 
-  const startTest = () => {
+      const currentWpm = timeElapsed > 0 ? Math.round(correct / 5 / timeElapsed) : 0
+
+      // Add to history for smoothing
+      setWpmHistory((prev) => {
+        const newHistory = [...prev, currentWpm].slice(-5)
+        const smoothedWpm = Math.round(newHistory.reduce((a, b) => a + b, 0) / newHistory.length)
+        setWpm(smoothedWpm)
+        return newHistory
+      })
+    }
+  }, [userInput, isActive, currentText])
+
+  const startTest = useCallback(() => {
     generateNewText()
     setUserInput("")
-    setIsActive(true)
+    setIsActive(false) // Wait for first keypress to activate timer
     setIsComplete(false)
     setTimeLeft(difficultySettings[difficulty].duration)
     setWpm(0)
@@ -266,52 +434,54 @@ export default function TypingTest() {
     setTotalChars(0)
     setWpmHistory([])
     setCharacterBreakdown([])
-    setStartTime(Date.now())
+    startTimeRef.current = null
     setShowConfetti(false)
-    inputRef.current?.focus()
 
-    // Play start sound
-    playSound(800, 0.2)
-  }
+    setTimeout(() => {
+      inputRef.current?.focus()
+    }, 30)
+  }, [difficulty, generateNewText])
 
-  const endTest = () => {
+  const endTest = useCallback(() => {
     setIsActive(false)
     setIsComplete(true)
     setShowConfetti(true)
+    playCompleteChime()
 
-    // Play completion sound
-    playSound(1000, 0.3)
-    setTimeout(() => playSound(1200, 0.2), 100)
+    const timeElapsed = startTimeRef.current ? (Date.now() - startTimeRef.current) / 1000 : 0
+    const { correctChars: c, totalChars: t, accuracy: a, wpm: w, characterBreakdown: cb } = statsRef.current
+    const finalWpm = Math.round(c / 5 / (timeElapsed / 60))
 
-    // Create performance data
-    const timeElapsed = startTime ? (Date.now() - startTime) / 1000 : 0
     const performanceData: PerformanceData = {
-      wpm,
-      accuracy,
-      correctChars,
-      totalChars,
-      errors: totalChars - correctChars,
+      wpm: finalWpm || w,
+      accuracy: a,
+      correctChars: c,
+      totalChars: t,
+      errors: t - c,
       timeElapsed,
-      characterBreakdown,
+      characterBreakdown: cb,
     }
     setPerformanceData(performanceData)
 
-    // Update high score
-    if (wpm > highScore) {
-      setHighScore(wpm)
-      localStorage.setItem("a1typing-highscore", wpm.toString())
+    if ((finalWpm || w) > highScore) {
+      setHighScore(finalWpm || w)
+      localStorage.setItem("a1typing-highscore", (finalWpm || w).toString())
     }
 
-    // Hide confetti after animation
     setTimeout(() => setShowConfetti(false), 3000)
-  }
+  }, [highScore, playCompleteChime])
 
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light"
-    setTheme(newTheme)
-    localStorage.setItem("a1typing-theme", newTheme)
-    document.documentElement.classList.toggle("dark", newTheme === "dark")
-  }
+  // Global key listener for Tab to restart
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Tab") {
+        e.preventDefault()
+        startTest()
+      }
+    }
+    window.addEventListener("keydown", handleGlobalKeyDown)
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown)
+  }, [startTest])
 
   const updateSettings = (newSettings: Partial<TypingSettings>) => {
     const updatedSettings = { ...settings, ...newSettings }
@@ -320,42 +490,104 @@ export default function TypingTest() {
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!isActive) return
-
     const value = e.target.value
+
+    if (isComplete) return
+
+    // Auto start on first character
+    if (!isActive) {
+      setIsActive(true)
+      startTimeRef.current = Date.now()
+      playStartChime()
+    }
+
     setUserInput(value)
 
-    // Trigger RGB effect on keystroke
-    triggerRGBEffect()
+    if (value === currentText) {
+      // Direct completion when matches exactly
+      setUserInput(value)
+      endTest()
+      return
+    }
 
-    // Add shake effect on mistake
-    if (value.length > 0 && value[value.length - 1] !== currentText[value.length - 1]) {
-      inputRef.current?.classList.add("animate-pulse")
-      playSound(300, 0.1) // Error sound
+    const isError = value.length > 0 && value[value.length - 1] !== currentText[value.length - 1]
+    if (isError) {
+      inputRef.current?.classList.add("animate-shake")
+      playMechanicalClick(settings.switchType, true)
       setTimeout(() => {
-        inputRef.current?.classList.remove("animate-pulse")
+        inputRef.current?.classList.remove("animate-shake")
       }, 200)
     } else {
-      playSound(600, 0.05) // Correct keystroke sound
+      playMechanicalClick(settings.switchType, false)
     }
   }
 
+  // Dynamic Flow State Glow calculations based on WPM
+  const getFlowState = (wpmVal: number) => {
+    if (wpmVal < 40) {
+      return {
+        class: "flow-glow-blue",
+        color: "#3b82f6",
+        text: "text-blue-400",
+        bg: "bg-blue-500/10 border-blue-500/30",
+        name: "Rhythm",
+      }
+    }
+    if (wpmVal < 70) {
+      return {
+        class: "flow-glow-cyan",
+        color: "#06b6d4",
+        text: "text-cyan-400",
+        bg: "bg-cyan-500/10 border-cyan-500/30",
+        name: "Cruising",
+      }
+    }
+    if (wpmVal < 100) {
+      return {
+        class: "flow-glow-fuchsia",
+        color: "#d946ef",
+        text: "text-fuchsia-400",
+        bg: "bg-fuchsia-500/10 border-fuchsia-500/30",
+        name: "Flow State",
+      }
+    }
+    return {
+      class: "flow-glow-orange",
+      color: "#f97316",
+      text: "text-orange-400",
+      bg: "bg-orange-500/20 border-orange-500/60 animate-pulse",
+      name: "Hyper Flow!",
+    }
+  }
+
+  const flow = getFlowState(wpm)
+
   const renderText = () => {
     return currentText.split("").map((char, index) => {
-      let className = "transition-all duration-150 "
+      let className = "transition-all duration-100 font-mono text-2xl "
 
       if (index < userInput.length) {
         if (userInput[index] === char) {
-          className += "text-green-600 bg-green-100 dark:bg-green-900/30 shadow-sm"
+          className += "text-[#e2e8f0]" // typed correctly: white/light slate
         } else {
-          className += "text-red-600 bg-red-100 dark:bg-red-900/30 line-through shadow-sm"
+          className += "text-[#ef4444] bg-[#ef4444]/10 line-through" // incorrect: red + strikethrough
         }
       } else if (index === userInput.length) {
-        className += "bg-blue-500 text-white animate-pulse shadow-lg border-2 border-blue-400"
+        className += "text-[#38bdf8] bg-[#38bdf8]/15 animate-pulse" // active caret position
+      } else {
+        className += "text-slate-600" // untyped characters: muted dark slate
       }
 
       return (
-        <span key={index} className={className}>
+        <span
+          key={index}
+          className={className}
+          style={{
+            borderLeft: index === userInput.length ? "2px solid #38bdf8" : "2px solid transparent",
+            paddingLeft: "1px",
+            paddingRight: "1px",
+          }}
+        >
           {char}
         </span>
       )
@@ -366,101 +598,140 @@ export default function TypingTest() {
     ((difficultySettings[difficulty].duration - timeLeft) / difficultySettings[difficulty].duration) * 100
 
   return (
-    <div
-      className={`min-h-screen transition-all duration-300 relative overflow-hidden ${theme === "dark" ? "dark bg-gray-900" : "bg-gradient-to-br from-blue-50 to-indigo-100"}`}
-    >
-      {/* RGB Background Effect */}
-      <div ref={backgroundRef} className="fixed inset-0 -z-10" />
-
-      {/* Confetti Effect */}
+    <div className="min-h-screen bg-[#09090d] text-[#e2e8f0] flex flex-col justify-between py-12 px-4 select-none">
+      {/* Confetti celebration */}
       {showConfetti && <ConfettiEffect />}
 
-      <div className="container mx-auto px-4 py-8 max-w-4xl relative z-10">
+      <div className="container mx-auto max-w-4xl flex-1 flex flex-col justify-center">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center shadow-lg">
-              <Zap className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-cyan-900/20">
+              <Keyboard className="w-6 h-6 text-white" />
             </div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              A1Typing
-            </h1>
-            <Badge variant="outline" className="ml-2">
+            <div>
+              <h1 className="text-3xl font-extrabold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent tracking-tight">
+                A1Typing
+              </h1>
+            </div>
+            <Badge variant="outline" className="border-slate-800 text-slate-400 text-xs">
               v1.0
             </Badge>
           </div>
 
           <div className="flex items-center gap-4">
             {highScore > 0 && (
-              <Badge variant="secondary" className="flex items-center gap-1 shadow-sm">
-                <Trophy className="w-4 h-4" />
-                High Score: {highScore} WPM
+              <Badge className="bg-slate-900/60 border border-slate-800 flex items-center gap-1.5 py-1 px-3 shadow-md">
+                <Trophy className="w-4 h-4 text-yellow-500" />
+                <span className="text-slate-300 font-medium">High Score:</span>
+                <span className="text-yellow-400 font-bold">{highScore} WPM</span>
               </Badge>
             )}
 
             {/* Settings Dialog */}
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="outline" size="icon" className="transition-transform hover:scale-105">
+                <Button variant="outline" size="icon" className="border-slate-800 bg-[#161622] hover:bg-slate-800 text-slate-400 transition-colors">
                   <Settings className="w-4 h-4" />
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="bg-[#161622] border-slate-800 text-[#e2e8f0]">
                 <DialogHeader>
-                  <DialogTitle>Settings</DialogTitle>
+                  <DialogTitle className="text-[#e2e8f0] text-lg font-bold">Typing Settings</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="rgb-effects">RGB Background Effects</Label>
-                    <Switch
-                      id="rgb-effects"
-                      checked={settings.rgbEffects}
-                      onCheckedChange={(checked) => updateSettings({ rgbEffects: checked })}
-                    />
+                <div className="space-y-6 pt-4">
+                  {/* Keyboard Switch Type selector */}
+                  <div className="space-y-3">
+                    <Label className="text-slate-300 font-medium">Mechanical Switch Profile</Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(["blue", "brown", "red"] as const).map((type) => (
+                        <Button
+                          key={type}
+                          variant={settings.switchType === type ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => updateSettings({ switchType: type })}
+                          className={`capitalize font-semibold transition-all ${
+                            settings.switchType === type
+                              ? "bg-cyan-500 hover:bg-cyan-600 text-white"
+                              : "border-slate-800 bg-[#0f0f15] hover:bg-slate-800 text-slate-300"
+                          }`}
+                        >
+                          {type === "blue" ? "Blue (Clicky)" : type === "brown" ? "Brown (Tactile)" : "Red (Linear)"}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="audio-enabled">Audio Feedback</Label>
+
+                  {/* Audio enable/disable */}
+                  <div className="flex items-center justify-between border-t border-slate-800 pt-4">
+                    <Label htmlFor="audio-enabled" className="text-slate-300 font-medium">Audio Feedback</Label>
                     <div className="flex items-center gap-2">
-                      {settings.audioEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                      {settings.audioEnabled ? <Volume2 className="w-4 h-4 text-cyan-400" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
                       <Switch
                         id="audio-enabled"
                         checked={settings.audioEnabled}
                         onCheckedChange={(checked) => updateSettings({ audioEnabled: checked })}
+                        className="data-[state=checked]:bg-cyan-500 data-[state=unchecked]:bg-slate-800"
                       />
                     </div>
+                  </div>
+
+                  {/* Volume slider */}
+                  <div className="space-y-2 border-t border-slate-800 pt-4">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="volume-slider" className="text-slate-300 font-medium">Feedback Volume</Label>
+                      <span className="text-xs text-cyan-400 font-bold font-mono">{Math.round(settings.soundVolume * 100)}%</span>
+                    </div>
+                    <input
+                      id="volume-slider"
+                      type="range"
+                      min="0.05"
+                      max="1"
+                      step="0.05"
+                      value={settings.soundVolume}
+                      onChange={(e) => updateSettings({ soundVolume: parseFloat(e.target.value) })}
+                      className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                    />
                   </div>
                 </div>
               </DialogContent>
             </Dialog>
-
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={toggleTheme}
-              className="transition-transform hover:scale-105"
-            >
-              {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-            </Button>
           </div>
         </div>
 
         {/* Difficulty Selector */}
-        <Card className="mb-6 shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Timer className="w-5 h-5" />
-              Select Difficulty
+        <Card className="mb-6 bg-[#161622] border-slate-800 shadow-md">
+          <CardHeader className="py-4">
+            <CardTitle className="text-sm font-semibold text-slate-400 flex items-center gap-2">
+              <Timer className="w-4 h-4 text-cyan-400" />
+              Test Duration Mode
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pb-4">
             <div className="flex gap-2 flex-wrap">
               {Object.entries(difficultySettings).map(([key, setting]) => (
                 <Button
                   key={key}
                   variant={difficulty === key ? "default" : "outline"}
-                  onClick={() => setDifficulty(key as Difficulty)}
+                  onClick={() => {
+                    setDifficulty(key as Difficulty)
+                    setDifficulty((prev) => {
+                      // Trigger startTest configuration changes safely
+                      setTimeLeft(difficultySettings[key as Difficulty].duration)
+                      generateNewText()
+                      setUserInput("")
+                      setIsActive(false)
+                      setIsComplete(false)
+                      setWpm(0)
+                      return key as Difficulty
+                    })
+                  }}
                   disabled={isActive}
-                  className="transition-all hover:scale-105 shadow-sm"
+                  className={`transition-all py-1 px-4 text-xs font-semibold ${
+                    difficulty === key
+                      ? "bg-cyan-500 hover:bg-cyan-600 text-white shadow-sm"
+                      : "border-slate-800 bg-[#0f0f15] hover:bg-slate-800 text-slate-300"
+                  }`}
                 >
                   {setting.label}
                 </Button>
@@ -469,117 +740,136 @@ export default function TypingTest() {
           </CardContent>
         </Card>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card className="shadow-lg">
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-blue-600">{timeLeft}s</div>
-              <div className="text-sm text-muted-foreground">Time Left</div>
+        {/* Dynamic WPM Stats & Flow state visualizer */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <Card className="bg-[#1b1b2a]/60 border-slate-800 shadow-sm text-center">
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-sky-400 font-mono">{timeLeft}s</div>
+              <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Time Remaining</div>
             </CardContent>
           </Card>
-          <Card className="shadow-lg">
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-green-600">{wpm}</div>
-              <div className="text-sm text-muted-foreground">WPM</div>
+          <Card className="bg-[#1b1b2a]/60 border-slate-800 shadow-sm text-center">
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-emerald-400 font-mono">{wpm}</div>
+              <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Words Per Minute</div>
             </CardContent>
           </Card>
-          <Card className="shadow-lg">
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-purple-600">{accuracy}%</div>
-              <div className="text-sm text-muted-foreground">Accuracy</div>
+          <Card className="bg-[#1b1b2a]/60 border-slate-800 shadow-sm text-center">
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-purple-400 font-mono">{accuracy}%</div>
+              <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Accuracy Rate</div>
             </CardContent>
           </Card>
-          <Card className="shadow-lg">
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-orange-600">
-                {correctChars}/{totalChars}
+          <Card className="bg-[#1b1b2a]/60 border-slate-800 shadow-sm text-center">
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-orange-400 font-mono">
+                {correctChars}<span className="text-slate-600 text-sm">/{totalChars}</span>
               </div>
-              <div className="text-sm text-muted-foreground">Characters</div>
+              <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Strokes (OK/All)</div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Progress Bar */}
+        {/* Countdown Progress */}
         {isActive && (
           <div className="mb-6">
-            <Progress value={progressPercentage} className="h-3 shadow-sm" />
+            <Progress value={progressPercentage} className="h-1 bg-slate-900" style={{ backgroundColor: '#09090d' }}>
+              <div className="h-full bg-cyan-500 transition-all duration-300" style={{ width: `${progressPercentage}%` }} />
+            </Progress>
           </div>
         )}
 
-        {/* Main Test Area */}
-        <Card className="mb-6 shadow-xl">
-          <CardContent className="p-6">
-            <div className="text-lg leading-relaxed mb-4 p-4 bg-muted rounded-lg font-mono shadow-inner">
+        {/* Main Test Area with Flow State Glow */}
+        <Card className={`mb-6 bg-[#161622] border-slate-800 transition-all duration-500 ${isActive ? flow.class : ""}`}>
+          <CardContent className="p-6 relative">
+            {/* Elegant Flow State Badge */}
+            {isActive && (
+              <div className="absolute top-3 right-3 flex items-center">
+                <Badge className={`capitalize font-bold text-[10px] tracking-wider py-0.5 px-2.5 ${flow.bg} ${flow.text} border`}>
+                  {flow.name}
+                </Badge>
+              </div>
+            )}
+
+            {/* Passage Display */}
+            <div className="leading-relaxed mb-6 p-6 bg-[#0f0f15] border border-slate-900 rounded-xl shadow-inner select-none whitespace-pre-wrap tracking-wide font-mono">
               {renderText()}
             </div>
 
+            {/* High Contrast Dark Input Bar */}
             <input
               ref={inputRef}
               type="text"
               value={userInput}
               onChange={handleInputChange}
-              disabled={!isActive}
-              placeholder={isActive ? "Start typing..." : "Click 'Start Test' to begin"}
-              className="w-full p-4 text-lg border-2 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20 transition-all disabled:bg-muted disabled:cursor-not-allowed shadow-sm caret-blue-500 caret-thick"
+              placeholder={isActive ? "" : "Start typing here or press [Tab] to begin..."}
+              className="w-full p-4 text-lg font-mono bg-[#0f0f15] border border-slate-800 text-slate-100 rounded-xl focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/10 transition-all shadow-inner placeholder:text-slate-600"
               autoComplete="off"
               spellCheck="false"
-              style={{
-                caretColor: theme === "dark" ? "#60a5fa" : "#3b82f6",
-              }}
             />
           </CardContent>
         </Card>
 
-        {/* Controls */}
-        <div className="text-center mb-6">
+        {/* Restart Hint & Button */}
+        <div className="flex flex-col items-center justify-center gap-3">
           <Button
             onClick={startTest}
-            disabled={isActive}
             size="lg"
-            className="transition-all hover:scale-105 disabled:scale-100 shadow-lg"
+            className="bg-cyan-500 hover:bg-cyan-600 text-white font-semibold flex items-center gap-2 py-2 px-6 rounded-xl shadow-lg shadow-cyan-900/10 transition-all"
           >
-            {isActive ? "Test in Progress..." : "Start Test"}
+            <RotateCcw className="w-4 h-4" />
+            {isActive ? "Reset Test" : "Restart Test"}
           </Button>
+
+          <div className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+            <kbd className="px-1.5 py-0.5 bg-[#1b1b2a] border border-slate-800 rounded text-slate-400 font-mono text-[10px] shadow-sm">Tab</kbd>
+            <span>key resets and restarts instantly</span>
+          </div>
         </div>
 
-        {/* Results */}
+        {/* Results Analytics Modal */}
         {isComplete && performanceData && (
-          <Card className="animate-in slide-in-from-bottom-4 duration-500 shadow-xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-center justify-center">
-                <Target className="w-5 h-5" />
-                Test Complete!
+          <Card className="mt-8 animate-in fade-in slide-in-from-bottom-4 duration-300 bg-[#161622] border-slate-800 shadow-xl">
+            <CardHeader className="text-center pb-2">
+              <CardTitle className="text-lg font-extrabold text-[#e2e8f0] flex items-center gap-2 justify-center">
+                <Target className="w-5 h-5 text-cyan-400" />
+                Test Completed!
               </CardTitle>
             </CardHeader>
-            <CardContent className="text-center">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg shadow-sm">
-                  <div className="text-3xl font-bold text-green-600">{wpm}</div>
-                  <div className="text-sm text-muted-foreground">Words Per Minute</div>
+            <CardContent className="text-center pt-2">
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="p-4 bg-[#0f0f15] border border-slate-850 rounded-xl">
+                  <div className="text-3xl font-extrabold text-emerald-400 font-mono">{performanceData.wpm}</div>
+                  <div className="text-xs text-slate-400 font-medium">Net Words Per Minute</div>
                 </div>
-                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg shadow-sm">
-                  <div className="text-3xl font-bold text-blue-600">{accuracy}%</div>
-                  <div className="text-sm text-muted-foreground">Accuracy</div>
+                <div className="p-4 bg-[#0f0f15] border border-slate-850 rounded-xl">
+                  <div className="text-3xl font-extrabold text-cyan-400 font-mono">{performanceData.accuracy}%</div>
+                  <div className="text-xs text-slate-400 font-medium">Accurate Characters</div>
                 </div>
               </div>
 
-              <div className="flex gap-2 justify-center">
-                {wpm > highScore && (
-                  <Badge variant="default" className="animate-bounce shadow-sm">
+              <div className="flex gap-3 justify-center items-center">
+                {performanceData.wpm > highScore && highScore > 0 && (
+                  <Badge className="bg-yellow-500/15 border-yellow-500/30 text-yellow-400 font-bold px-3 py-1 animate-bounce">
                     🎉 New High Score!
                   </Badge>
                 )}
 
                 <PerformanceModal data={performanceData}>
-                  <Button variant="outline" size="sm" className="flex items-center gap-1">
-                    <BarChart3 className="w-4 h-4" />
-                    View Details
+                  <Button variant="outline" size="sm" className="border-slate-800 bg-[#0f0f15] hover:bg-slate-800 text-slate-300 flex items-center gap-1.5 py-1 px-3">
+                    <BarChart3 className="w-4 h-4 text-cyan-400" />
+                    Detailed Heatmap
                   </Button>
                 </PerformanceModal>
               </div>
             </CardContent>
           </Card>
         )}
+      </div>
+
+      {/* Footer */}
+      <div className="text-center text-xs text-slate-600 font-medium">
+        Focus on accuracy, build rhythm. Inspired by premium typing tools.
       </div>
     </div>
   )
