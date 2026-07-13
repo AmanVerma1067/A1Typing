@@ -30,6 +30,21 @@ const textSamples = {
     "ask a glad lad to flash glass",
     "a sad lad had a glass flask",
     "alfalfa salads had all glass",
+    "a sad lad has a flag a flask",
+    "dad shall ask a gal a salsa",
+    "hags fall as a flask falls",
+    "a glad gal has a sash",
+    "dad has a salad a lass has gas",
+    "all lads shall ask a hag",
+    "a hall has flags a flask",
+    "gals ask lads a salad",
+    "sad hags had a flag a flask",
+    "dad has a flag a flask a sash",
+    "a gal had a gala a lass had salsa",
+    "all dads ask a lad a salad",
+    "flags fall as a flask has gas",
+    "a lad a gal had glass salsa",
+    "hags ask a dad a flag a flask",
   ],
   upperRow: [
     "we write typewriters to you",
@@ -44,6 +59,21 @@ const textSamples = {
     "our puppy will try to pour wet tea",
     "your peer will type priority reports",
     "we put our pot to pour wet tea",
+    "your typewriter requires proper repair",
+    "we wrote poetry to our peers",
+    "put the pepper in the pot to boil",
+    "try your best to type without error",
+    "the typist wrote a report on time",
+    "pour the water into your empty cup",
+    "we wore our winter coats outdoors",
+    "your query returned too many results",
+    "we quietly typed our weekly report",
+    "the puppy played near the pretty pond",
+    "your printer requires more toner today",
+    "we wrote a poem about our trip",
+    "your outfit looks proper for the party",
+    "put your trust in your own effort",
+    "we tried a new recipe for dinner",
   ],
   lowerRow: [
     "men can move vm bnb mm",
@@ -54,6 +84,21 @@ const textSamples = {
     "men can mimic nbc vancouver cox",
     "bob can move common civic bmx",
     "mimic common men cv nbc",
+    "the zoo van moved by noon",
+    "seven monkeys climbed a coconut tree",
+    "vincent bought a new camera",
+    "the vacuum hummed in an empty room",
+    "common sense combined with a calm mind",
+    "the movie began with a mysterious scene",
+    "mice and cats live in the barn",
+    "a nimble monkey climbed the vine",
+    "seven cats napped on a warm mat",
+    "vivian moved the piano by herself",
+    "the maximum number became seven hundred",
+    "bob and vince mixed the batter",
+    "the cabin overlooked a calm bay",
+    "many men move boxes every morning",
+    "nnm bcx vzx cnm bvx nmb",
   ],
   fullKeyboard: [
     "the quick brown fox jumps over the lazy dog",
@@ -123,6 +168,46 @@ const textSamples = {
     "i have not failed i have just found ten thousand ways that will not work",
     "the best and most beautiful things in the world cannot be seen or even touched",
     "it is not what you look at that matters it is what you see inside",
+    "the mountain air felt crisp and clean this morning",
+    "children laughed as they played in the park",
+    "the chef added fresh basil to the simmering sauce",
+    "scientists discovered a new species of frog in the rainforest",
+    "the train departed the station exactly on schedule",
+    "waves crashed gently against the rocky shoreline",
+    "she solved the puzzle in record time",
+    "the library was quiet except for turning pages",
+    "autumn leaves drifted slowly to the ground",
+    "the marathon runner crossed the finish line exhausted",
+    "a gentle breeze carried the scent of fresh bread",
+    "the astronaut described the view of earth from orbit",
+    "farmers harvested the golden wheat before the storm",
+    "the orchestra tuned their instruments before the show",
+    "curiosity led the young scientist to a new discovery",
+    "the old bridge creaked under the weight of the truck",
+    "morning fog rolled over the quiet valley",
+    "the baker kneaded the dough with practiced hands",
+    "stars filled the clear night sky above the desert",
+    "the puppy chased its tail in endless circles",
+    "engineers tested the bridge before opening it to traffic",
+    "the garden bloomed with color after the spring rain",
+    "travelers waited patiently at the crowded airport gate",
+    "the coach reminded the team to stay focused",
+    "lightning flashed across the darkening summer sky",
+    "the museum displayed artifacts from ancient civilizations",
+    "a curious cat explored every corner of the house",
+    "the students worked together to finish the project",
+    "the chef plated the dessert with careful precision",
+    "hikers reached the summit just before sunset",
+    "the river carved a path through the canyon over centuries",
+    "volunteers gathered to clean up the local beach",
+    "the violinist practiced the same passage for hours",
+    "snow blanketed the rooftops overnight",
+    "the inventor tested three prototypes before finding success",
+    "birds migrated south as the weather turned colder",
+    "the market buzzed with vendors selling fresh produce",
+    "a rainbow appeared after the brief afternoon shower",
+    "the pilot announced a smooth descent into the city",
+    "quiet determination carried her through the difficult exam",
   ]
 }
 
@@ -177,6 +262,8 @@ export default function TypingTest() {
   const [accumulatedBreakdown, setAccumulatedBreakdown] = useState<
     Array<{ char: string; correct: boolean; timestamp: number }>
   >([])
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [isFocused, setIsFocused] = useState(false)
 
   const [settings, setSettings] = useState<TypingSettings>({
     switchType: "blue",
@@ -581,17 +668,18 @@ export default function TypingTest() {
     setTimeout(() => setShowConfetti(false), 3000)
   }, [highScore, playCompleteChime])
 
-  // Global key listener for Tab to restart
+  // Global key listener for Tab to restart (skipped while the settings dialog is open
+  // so Tab can move focus between dialog controls as expected)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Tab") {
+      if (e.key === "Tab" && !settingsOpen) {
         e.preventDefault()
         startTest()
       }
     }
     window.addEventListener("keydown", handleGlobalKeyDown)
     return () => window.removeEventListener("keydown", handleGlobalKeyDown)
-  }, [startTest])
+  }, [startTest, settingsOpen])
 
   const updateSettings = (newSettings: Partial<TypingSettings>) => {
     const updatedSettings = { ...settings, ...newSettings }
@@ -690,6 +778,7 @@ export default function TypingTest() {
   }
 
   const flow = getFlowState(wpm)
+  const timeCritical = isActive && timeLeft <= 5
 
   const renderText = () => {
     return currentText.split("").map((char, index) => {
@@ -752,8 +841,20 @@ export default function TypingTest() {
               </Badge>
             )}
 
+            {/* Quick mute toggle, no need to open settings for this */}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => updateSettings({ audioEnabled: !settings.audioEnabled })}
+              className="border-slate-800 bg-[#161622] hover:bg-slate-800 text-slate-400 transition-colors"
+              aria-label={settings.audioEnabled ? "Mute keyboard sounds" : "Unmute keyboard sounds"}
+              title={settings.audioEnabled ? "Mute keyboard sounds" : "Unmute keyboard sounds"}
+            >
+              {settings.audioEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </Button>
+
             {/* Settings Dialog */}
-            <Dialog>
+            <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="icon" className="border-slate-800 bg-[#161622] hover:bg-slate-800 text-slate-400 transition-colors">
                   <Settings className="w-4 h-4" />
@@ -773,7 +874,10 @@ export default function TypingTest() {
                           key={type}
                           variant={settings.switchType === type ? "default" : "outline"}
                           size="sm"
-                          onClick={() => updateSettings({ switchType: type })}
+                          onClick={() => {
+                            updateSettings({ switchType: type })
+                            playMechanicalClick(type, false)
+                          }}
                           className={`capitalize font-semibold transition-all ${
                             settings.switchType === type
                               ? "bg-cyan-500 hover:bg-cyan-600 text-white"
@@ -784,6 +888,7 @@ export default function TypingTest() {
                         </Button>
                       ))}
                     </div>
+                    <p className="text-[11px] text-slate-500">Tap a profile to preview its sound.</p>
                   </div>
 
                   {/* Audio enable/disable */}
@@ -889,9 +994,19 @@ export default function TypingTest() {
 
         {/* Dynamic WPM Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <Card className="bg-[#13131f] border-slate-800/60 text-center transition-colors duration-300 hover:border-slate-700/60">
+          <Card
+            className={`bg-[#13131f] text-center transition-colors duration-300 ${
+              timeCritical ? "border-red-500/50" : "border-slate-800/60 hover:border-slate-700/60"
+            }`}
+          >
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-sky-400 font-mono tabular-nums">{timeLeft}s</div>
+              <div
+                className={`text-2xl font-bold font-mono tabular-nums transition-colors duration-300 ${
+                  timeCritical ? "text-red-400 animate-pulse" : "text-sky-400"
+                }`}
+              >
+                {timeLeft}s
+              </div>
               <div className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold mt-1">Time</div>
             </CardContent>
           </Card>
@@ -934,7 +1049,9 @@ export default function TypingTest() {
 
         {/* Main Test Area with Flow State Glow */}
         <Card
-          className={`mb-4 bg-[#12121e] border-slate-800/60 transition-all duration-500 cursor-text select-none ${isActive ? flow.class : ""}`}
+          className={`mb-4 bg-[#12121e] border-slate-800/60 transition-all duration-500 cursor-text select-none ${
+            isActive ? flow.class : ""
+          } ${isFocused && !isActive && !isComplete ? "ring-2 ring-cyan-500/40" : ""}`}
           onClick={() => inputRef.current?.focus()}
         >
           <CardContent className="p-5">
@@ -956,18 +1073,24 @@ export default function TypingTest() {
               <div className="w-full text-left">
                 {renderText()}
               </div>
-            </div>
 
-            {/* Hidden Input box to capture typing events */}
-            <input
-              ref={inputRef}
-              type="text"
-              value={userInput}
-              onChange={handleInputChange}
-              className="absolute opacity-0 w-0 h-0 pointer-events-none"
-              autoComplete="off"
-              spellCheck="false"
-            />
+              {/* Input covers the whole passage so a tap anywhere focuses it directly,
+                  which is what reliably raises the on-screen keyboard on mobile. */}
+              <input
+                ref={inputRef}
+                type="text"
+                value={userInput}
+                onChange={handleInputChange}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-text"
+                autoComplete="off"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck="false"
+                aria-label="Typing input area"
+              />
+            </div>
           </CardContent>
         </Card>
 
