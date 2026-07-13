@@ -94,6 +94,11 @@ export default function TypingTest() {
     Array<{ char: string; correct: boolean; timestamp: number }>
   >([])
   const [currentTextIndex, setCurrentTextIndex] = useState(0)
+  const [accumulatedCorrect, setAccumulatedCorrect] = useState(0)
+  const [accumulatedTotal, setAccumulatedTotal] = useState(0)
+  const [accumulatedBreakdown, setAccumulatedBreakdown] = useState<
+    Array<{ char: string; correct: boolean; timestamp: number }>
+  >([])
 
   const [settings, setSettings] = useState<TypingSettings>({
     switchType: "blue",
@@ -389,28 +394,31 @@ export default function TypingTest() {
     if (isActive && startTimeRef.current) {
       const timeElapsed = (Date.now() - startTimeRef.current) / 1000 / 60 // minutes
 
-      let correct = 0
-      const breakdown: Array<{ char: string; correct: boolean; timestamp: number }> = []
+      let currentCorrect = 0
+      const currentBreakdown: Array<{ char: string; correct: boolean; timestamp: number }> = []
 
       for (let i = 0; i < userInput.length; i++) {
         const isCorrect = userInput[i] === currentText[i]
-        if (isCorrect) correct++
+        if (isCorrect) currentCorrect++
 
-        breakdown.push({
+        currentBreakdown.push({
           char: userInput[i],
           correct: isCorrect,
           timestamp: Date.now(),
         })
       }
 
-      setCorrectChars(correct)
-      setTotalChars(userInput.length)
-      setCharacterBreakdown(breakdown)
+      const totalCorrect = accumulatedCorrect + currentCorrect
+      const totalTyped = accumulatedTotal + userInput.length
 
-      const currentAccuracy = userInput.length > 0 ? Math.round((correct / userInput.length) * 100) : 100
+      setCorrectChars(totalCorrect)
+      setTotalChars(totalTyped)
+      setCharacterBreakdown([...accumulatedBreakdown, ...currentBreakdown])
+
+      const currentAccuracy = totalTyped > 0 ? Math.round((totalCorrect / totalTyped) * 100) : 100
       setAccuracy(currentAccuracy)
 
-      const currentWpm = timeElapsed > 0 ? Math.round(correct / 5 / timeElapsed) : 0
+      const currentWpm = timeElapsed > 0 ? Math.round(totalCorrect / 5 / timeElapsed) : 0
 
       // Add to history for smoothing
       setWpmHistory((prev) => {
@@ -420,7 +428,7 @@ export default function TypingTest() {
         return newHistory
       })
     }
-  }, [userInput, isActive, currentText])
+  }, [userInput, isActive, currentText, accumulatedCorrect, accumulatedTotal, accumulatedBreakdown])
 
   const startTest = useCallback(() => {
     generateNewText()
@@ -434,6 +442,9 @@ export default function TypingTest() {
     setTotalChars(0)
     setWpmHistory([])
     setCharacterBreakdown([])
+    setAccumulatedCorrect(0)
+    setAccumulatedTotal(0)
+    setAccumulatedBreakdown([])
     startTimeRef.current = null
     setShowConfetti(false)
 
@@ -504,9 +515,28 @@ export default function TypingTest() {
     setUserInput(value)
 
     if (value === currentText) {
-      // Direct completion when matches exactly
-      setUserInput(value)
-      endTest()
+      // Finished the current passage: accumulate stats and load next text
+      let correct = 0
+      const currentBreakdown: Array<{ char: string; correct: boolean; timestamp: number }> = []
+
+      for (let i = 0; i < value.length; i++) {
+        const isCorrect = value[i] === currentText[i]
+        if (isCorrect) correct++
+
+        currentBreakdown.push({
+          char: value[i],
+          correct: isCorrect,
+          timestamp: Date.now(),
+        })
+      }
+
+      setAccumulatedCorrect(prev => prev + correct)
+      setAccumulatedTotal(prev => prev + value.length)
+      setAccumulatedBreakdown(prev => [...prev, ...currentBreakdown])
+
+      generateNewText()
+      setUserInput("")
+      playMechanicalClick(settings.switchType, false)
       return
     }
 
@@ -524,7 +554,7 @@ export default function TypingTest() {
 
   // Dynamic Flow State Glow calculations based on WPM
   const getFlowState = (wpmVal: number) => {
-    if (wpmVal < 40) {
+    if (wpmVal < 25) {
       return {
         class: "flow-glow-blue",
         color: "#3b82f6",
@@ -533,7 +563,7 @@ export default function TypingTest() {
         name: "Rhythm",
       }
     }
-    if (wpmVal < 70) {
+    if (wpmVal < 55) {
       return {
         class: "flow-glow-cyan",
         color: "#06b6d4",
@@ -542,7 +572,7 @@ export default function TypingTest() {
         name: "Cruising",
       }
     }
-    if (wpmVal < 100) {
+    if (wpmVal < 85) {
       return {
         class: "flow-glow-fuchsia",
         color: "#d946ef",
