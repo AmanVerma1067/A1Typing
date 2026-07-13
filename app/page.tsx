@@ -898,29 +898,25 @@ export default function TypingTest() {
           className={`mb-6 bg-[#161622] border-slate-800 transition-all duration-500 cursor-text select-none ${isActive ? flow.class : ""}`}
           onClick={() => inputRef.current?.focus()}
         >
-          <CardContent className="p-6 relative">
-            {/* Elegant Flow State Badge */}
-            {isActive && (
-              <div className="absolute top-3 right-3 flex items-center">
+          <CardContent className="p-6">
+            {/* Header Status Row */}
+            <div className="flex justify-between items-center mb-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              <span className="text-slate-400 font-sans flex items-center gap-1.5">
+                <Keyboard className="w-3.5 h-3.5 text-cyan-450" />
+                {keyboardMode === "home" ? "Home Row Practice" : keyboardMode === "upper" ? "Upper Row Practice" : keyboardMode === "lower" ? "Lower Row Practice" : "Full Keyboard Practice"}
+              </span>
+              {isActive && (
                 <Badge className={`capitalize font-bold text-[10px] tracking-wider py-0.5 px-2.5 ${flow.bg} ${flow.text} border`}>
                   {flow.name}
                 </Badge>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Passage Display */}
             <div className="leading-relaxed p-6 bg-[#0f0f15] border border-slate-900 rounded-xl shadow-inner select-none whitespace-pre-wrap tracking-wide font-mono relative min-h-[140px] flex items-center justify-center">
               <div className="w-full text-left">
                 {renderText()}
               </div>
-              {!isActive && userInput.length === 0 && (
-                <div className="absolute inset-0 flex items-center justify-center bg-[#0f0f15]/95 rounded-xl border border-dashed border-slate-850 transition-all duration-300">
-                  <span className="text-slate-400 font-sans text-sm animate-pulse flex items-center gap-2">
-                    <Keyboard className="w-4 h-4 text-cyan-400" />
-                    Click here or start typing to begin...
-                  </span>
-                </div>
-              )}
             </div>
 
             {/* Hidden Input box to capture typing events */}
@@ -935,6 +931,16 @@ export default function TypingTest() {
             />
           </CardContent>
         </Card>
+
+        {/* Start Hint */}
+        {!isActive && userInput.length === 0 && (
+          <div className="text-center mb-6 animate-pulse">
+            <span className="text-slate-400 font-sans text-xs flex items-center justify-center gap-1.5">
+              <Keyboard className="w-3.5 h-3.5 text-cyan-400" />
+              Press any key or click the text card above to focus & start typing...
+            </span>
+          </div>
+        )}
 
         {/* Restart Hint & Button */}
         <div className="flex flex-col items-center justify-center gap-3">
