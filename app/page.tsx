@@ -57,7 +57,6 @@ const textSamples = {
   ],
   fullKeyboard: [
     "the quick brown fox jumps over the lazy dog",
-    "hello world this is a typing test for you",
     "practice makes perfect in every skill you learn",
     "time flies when you are having fun with friends",
     "success comes to those who work hard every day",
@@ -69,7 +68,6 @@ const textSamples = {
     "actions speak louder than words in life",
     "all that glitters is not gold in the end",
     "honesty is the best policy for a happy life",
-    "make hay while the sun shines my friend",
     "where there is a will there is a way",
     "birds of a feather flock together always",
     "every cloud has a silver lining to find",
@@ -77,15 +75,54 @@ const textSamples = {
     "look before you leap into the deep blue",
     "a stitch in time saves nine in the long run",
     "knowledge is a treasure but practice is the key",
-    "you only live once but if you do it right once is enough",
-    "to be or not to be that is the question we ask",
     "the only constant in life is change they say",
     "happiness depends upon ourselves and our minds",
     "well begun is half done in any project",
     "better late than never is a good rule to keep",
-    "cleanliness is next to godliness they say",
     "laughter is the best medicine for the soul",
-    "don't judge a book by its cover at first sight",
+    "do what you can with what you have where you are",
+    "in the middle of difficulty lies opportunity",
+    "the best time to plant a tree was twenty years ago",
+    "it does not matter how slowly you go as long as you do not stop",
+    "be yourself everyone else is already taken",
+    "two things are infinite the universe and human stupidity",
+    "you miss one hundred percent of the shots you never take",
+    "whether you think you can or you think you cannot you are right",
+    "the mind is everything what you think you become",
+    "strive not to be a success but rather to be of value",
+    "the best revenge is massive success in life",
+    "fall seven times stand up eight and keep going",
+    "everything you can imagine is real if you believe",
+    "simplicity is the ultimate sophistication in design",
+    "the journey of a thousand miles begins with one step",
+    "not all those who wander are lost in the world",
+    "what we think we become so think wisely",
+    "the only way to do great work is to love what you do",
+    "believe you can and you are halfway there already",
+    "it is during our darkest moments that we must focus to see light",
+    "creativity is intelligence having fun with ideas",
+    "life is what happens when you are busy making other plans",
+    "the purpose of our lives is to be happy every day",
+    "get busy living or get busy dying that is the choice",
+    "you have brains in your head and feet in your shoes",
+    "if you want to lift yourself up lift up someone else first",
+    "whoever is happy will make others happy too in time",
+    "spread love everywhere you go let no one ever come without being happier",
+    "it is never too late to be what you might have been in life",
+    "nothing is impossible the word itself says i am possible",
+    "the future belongs to those who believe in the beauty of their dreams",
+    "a room without books is like a body without a soul",
+    "you can never cross the ocean until you have courage to lose sight of shore",
+    "there is only one way to avoid criticism do nothing say nothing be nothing",
+    "ask not what your country can do for you ask what you can do for your country",
+    "we are what we repeatedly do excellence then is not an act but a habit",
+    "try not to become a man of success rather become a man of value",
+    "great minds discuss ideas average minds discuss events small minds discuss people",
+    "a person who never made a mistake never tried anything new at all",
+    "the secret of getting ahead is getting started right now today",
+    "i have not failed i have just found ten thousand ways that will not work",
+    "the best and most beautiful things in the world cannot be seen or even touched",
+    "it is not what you look at that matters it is what you see inside",
   ]
 }
 
@@ -144,7 +181,7 @@ export default function TypingTest() {
   const [settings, setSettings] = useState<TypingSettings>({
     switchType: "blue",
     audioEnabled: true,
-    soundVolume: 0.3,
+    soundVolume: 1.0,
   })
 
   const inputRef = useRef<HTMLInputElement>(null)
@@ -656,28 +693,24 @@ export default function TypingTest() {
 
   const renderText = () => {
     return currentText.split("").map((char, index) => {
-      let className = "transition-all duration-100 font-mono text-2xl "
+      let className = "transition-colors duration-75 font-mono text-[22px] leading-[2] "
 
       if (index < userInput.length) {
         if (userInput[index] === char) {
-          className += "text-[#e2e8f0]" // typed correctly: white/light slate
+          className += "text-[#e2e8f0]" // typed correctly
         } else {
-          className += "text-[#ef4444] bg-[#ef4444]/10 line-through" // incorrect: red + strikethrough
+          className += "text-[#f87171] bg-[#ef4444]/10 line-through decoration-[#ef4444]/40" // incorrect
         }
       } else if (index === userInput.length) {
-        className += "text-[#38bdf8] bg-[#38bdf8]/15 custom-caret font-bold" // active custom-caret position
+        className += "text-[#67e8f9] custom-caret" // active caret position
       } else {
-        className += "text-slate-600" // untyped characters: muted dark slate
+        className += "text-[#334155]" // untyped: muted slate
       }
 
       return (
         <span
           key={index}
           className={className}
-          style={{
-            paddingLeft: "1px",
-            paddingRight: "1px",
-          }}
         >
           {char}
         </span>
@@ -854,32 +887,32 @@ export default function TypingTest() {
           </Card>
         </div>
 
-        {/* Dynamic WPM Stats & Flow state visualizer */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <Card className="bg-[#1b1b2a]/60 border-slate-800 shadow-sm text-center">
+        {/* Dynamic WPM Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <Card className="bg-[#13131f] border-slate-800/60 text-center transition-colors duration-300 hover:border-slate-700/60">
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-sky-400 font-mono">{timeLeft}s</div>
-              <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Time Remaining</div>
+              <div className="text-2xl font-bold text-sky-400 font-mono tabular-nums">{timeLeft}s</div>
+              <div className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold mt-1">Time</div>
             </CardContent>
           </Card>
-          <Card className="bg-[#1b1b2a]/60 border-slate-800 shadow-sm text-center">
+          <Card className="bg-[#13131f] border-slate-800/60 text-center transition-colors duration-300 hover:border-slate-700/60">
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-emerald-400 font-mono">{wpm}</div>
-              <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Words Per Minute</div>
+              <div className="text-2xl font-bold text-emerald-400 font-mono tabular-nums">{wpm}</div>
+              <div className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold mt-1">WPM</div>
             </CardContent>
           </Card>
-          <Card className="bg-[#1b1b2a]/60 border-slate-800 shadow-sm text-center">
+          <Card className="bg-[#13131f] border-slate-800/60 text-center transition-colors duration-300 hover:border-slate-700/60">
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-purple-400 font-mono">{accuracy}%</div>
-              <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Accuracy Rate</div>
+              <div className="text-2xl font-bold text-violet-400 font-mono tabular-nums">{accuracy}%</div>
+              <div className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold mt-1">Accuracy</div>
             </CardContent>
           </Card>
-          <Card className="bg-[#1b1b2a]/60 border-slate-800 shadow-sm text-center">
+          <Card className="bg-[#13131f] border-slate-800/60 text-center transition-colors duration-300 hover:border-slate-700/60">
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-orange-400 font-mono">
+              <div className="text-2xl font-bold text-amber-400 font-mono tabular-nums">
                 {correctChars}<span className="text-slate-600 text-sm">/{totalChars}</span>
               </div>
-              <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Strokes (OK/All)</div>
+              <div className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold mt-1">Strokes</div>
             </CardContent>
           </Card>
         </div>
@@ -887,33 +920,39 @@ export default function TypingTest() {
         {/* Countdown Progress */}
         {isActive && (
           <div className="mb-6">
-            <Progress value={progressPercentage} className="h-1 bg-slate-900" style={{ backgroundColor: '#09090d' }}>
-              <div className="h-full bg-cyan-500 transition-all duration-300" style={{ width: `${progressPercentage}%` }} />
-            </Progress>
+            <div className="w-full h-[3px] bg-[#0f0f15] rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-500 ease-linear"
+                style={{
+                  width: `${progressPercentage}%`,
+                  background: `linear-gradient(90deg, #06b6d4, ${flow.color})`,
+                }}
+              />
+            </div>
           </div>
         )}
 
         {/* Main Test Area with Flow State Glow */}
         <Card
-          className={`mb-6 bg-[#161622] border-slate-800 transition-all duration-500 cursor-text select-none ${isActive ? flow.class : ""}`}
+          className={`mb-4 bg-[#12121e] border-slate-800/60 transition-all duration-500 cursor-text select-none ${isActive ? flow.class : ""}`}
           onClick={() => inputRef.current?.focus()}
         >
-          <CardContent className="p-6">
+          <CardContent className="p-5">
             {/* Header Status Row */}
-            <div className="flex justify-between items-center mb-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <div className="flex justify-between items-center mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-500">
               <span className="text-slate-400 font-sans flex items-center gap-1.5">
-                <Keyboard className="w-3.5 h-3.5 text-cyan-450" />
-                {keyboardMode === "home" ? "Home Row Practice" : keyboardMode === "upper" ? "Upper Row Practice" : keyboardMode === "lower" ? "Lower Row Practice" : "Full Keyboard Practice"}
+                <Keyboard className="w-3.5 h-3.5 text-cyan-400" />
+                {keyboardMode === "home" ? "Home Row" : keyboardMode === "upper" ? "Upper Row" : keyboardMode === "lower" ? "Lower Row" : "Full Keyboard"}
               </span>
               {isActive && (
-                <Badge className={`capitalize font-bold text-[10px] tracking-wider py-0.5 px-2.5 ${flow.bg} ${flow.text} border`}>
+                <Badge className={`capitalize font-bold text-[10px] tracking-wider py-0.5 px-2.5 ${flow.bg} ${flow.text} border transition-all duration-500`}>
                   {flow.name}
                 </Badge>
               )}
             </div>
 
             {/* Passage Display */}
-            <div className="leading-relaxed p-6 bg-[#0f0f15] border border-slate-900 rounded-xl shadow-inner select-none whitespace-pre-wrap tracking-wide font-mono relative min-h-[140px] flex items-center justify-center">
+            <div className="p-5 bg-[#0a0a12] border border-slate-800/40 rounded-xl select-none whitespace-pre-wrap font-mono relative min-h-[160px] flex items-start">
               <div className="w-full text-left">
                 {renderText()}
               </div>
@@ -934,10 +973,10 @@ export default function TypingTest() {
 
         {/* Start Hint */}
         {!isActive && userInput.length === 0 && (
-          <div className="text-center mb-6 animate-pulse">
-            <span className="text-slate-400 font-sans text-xs flex items-center justify-center gap-1.5">
-              <Keyboard className="w-3.5 h-3.5 text-cyan-400" />
-              Press any key or click the text card above to focus & start typing...
+          <div className="text-center mb-4">
+            <span className="text-slate-500 font-sans text-xs flex items-center justify-center gap-1.5 animate-pulse">
+              <Keyboard className="w-3 h-3 text-cyan-500/60" />
+              Click the text area or start typing to begin...
             </span>
           </div>
         )}
