@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import { Trophy, Timer, Target, Zap, Settings, BarChart3, Volume2, VolumeX, Keyboard, RotateCcw } from "lucide-react"
+import { Trophy, Timer, Target, Zap, Settings, BarChart3, Volume2, VolumeX, Keyboard, RotateCcw, CheckCircle } from "lucide-react"
 import { PerformanceModal } from "@/components/performance-modal"
 import { ConfettiEffect } from "@/components/confetti-effect"
 
@@ -211,7 +211,7 @@ const textSamples = {
   ]
 }
 
-type Difficulty = "short" | "medium" | "long" | "custom"
+type Difficulty = "short" | "medium" | "long" | "custom" | "infinite"
 type KeyboardMode = "home" | "upper" | "lower" | "full" | "custom"
 type SwitchType = "blue" | "brown" | "red"
 
@@ -333,12 +333,14 @@ export default function TypingTest() {
 
   // Get active test duration based on difficulty setting
   const getTestDuration = useCallback(() => {
+    if (difficulty === "infinite") return 0
     if (difficulty === "custom") return customDuration
     return difficultySettings[difficulty].duration
   }, [difficulty, customDuration])
 
   // Get target character count to generate based on difficulty setting
   const getTargetChars = useCallback(() => {
+    if (difficulty === "infinite") return 400
     if (difficulty === "custom") return Math.max(30, customDuration * 4)
     return difficultySettings[difficulty].targetChars
   }, [difficulty, customDuration])
@@ -595,18 +597,24 @@ export default function TypingTest() {
 
   // Timer logic
   useEffect(() => {
-    if (isActive && timeLeft > 0) {
-      timerRef.current = setTimeout(() => {
-        setTimeLeft(timeLeft - 1)
-      }, 1000)
-    } else if (timeLeft === 0 && isActive) {
-      endTest()
+    if (isActive) {
+      if (difficulty === "infinite") {
+        timerRef.current = setTimeout(() => {
+          setTimeLeft((prev) => prev + 1)
+        }, 1000)
+      } else if (timeLeft > 0) {
+        timerRef.current = setTimeout(() => {
+          setTimeLeft(timeLeft - 1)
+        }, 1000)
+      } else if (timeLeft === 0) {
+        endTest()
+      }
     }
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [isActive, timeLeft])
+  }, [isActive, timeLeft, difficulty])
 
   // Enhanced WPM calculation with smoothing
   useEffect(() => {
@@ -829,7 +837,7 @@ export default function TypingTest() {
   }
 
   const flow = getFlowState(wpm)
-  const timeCritical = isActive && timeLeft <= 5
+  const timeCritical = difficulty !== "infinite" && isActive && timeLeft <= 5
 
   const renderText = () => {
     return currentText.split("").map((char, index) => {
@@ -859,7 +867,18 @@ export default function TypingTest() {
   }
 
   const totalDuration = getTestDuration()
-  const progressPercentage = ((totalDuration - timeLeft) / totalDuration) * 100
+  const progressPercentage = difficulty === "infinite"
+    ? 100
+    : ((totalDuration - timeLeft) / totalDuration) * 100
+
+  const formatTime = (seconds: number) => {
+    if (difficulty === "infinite") {
+      const mins = Math.floor(seconds / 60)
+      const secs = seconds % 60
+      return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`
+    }
+    return `${seconds}s`
+  }
 
   return (
     <div className="min-h-screen bg-[#09090d] text-[#e2e8f0] flex flex-col justify-between py-12 px-4 select-none">
@@ -1022,6 +1041,20 @@ export default function TypingTest() {
                 >
                   Custom
                 </Button>
+                <Button
+                  variant={difficulty === "infinite" ? "default" : "outline"}
+                  onClick={() => {
+                    setDifficulty("infinite")
+                  }}
+                  disabled={isActive}
+                  className={`transition-all py-1 px-3 text-[11px] font-semibold h-7 ${
+                    difficulty === "infinite"
+                      ? "bg-cyan-500 hover:bg-cyan-600 text-white shadow-sm"
+                      : "border-slate-800 bg-[#0f0f15] hover:bg-slate-800 text-slate-300"
+                  }`}
+                >
+                  Infinite (∞)
+                </Button>
               </div>
 
               {difficulty === "custom" && (
@@ -1140,9 +1173,11 @@ export default function TypingTest() {
                   timeCritical ? "text-red-400 animate-pulse" : "text-sky-400"
                 }`}
               >
-                {timeLeft}s
+                {formatTime(timeLeft)}
               </div>
-              <div className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold mt-1">Time</div>
+              <div className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold mt-1">
+                {difficulty === "infinite" ? "Elapsed" : "Time"}
+              </div>
             </CardContent>
           </Card>
           <Card className="bg-[#13131f] border-slate-800/60 text-center transition-colors duration-300 hover:border-slate-700/60">
@@ -1241,14 +1276,26 @@ export default function TypingTest() {
 
         {/* Restart Hint & Button */}
         <div className="flex flex-col items-center justify-center gap-3">
-          <Button
-            onClick={startTest}
-            size="lg"
-            className="bg-cyan-500 hover:bg-cyan-600 text-white font-semibold flex items-center gap-2 py-2 px-6 rounded-xl shadow-lg shadow-cyan-900/10 transition-all"
-          >
-            <RotateCcw className="w-4 h-4" />
-            {isActive ? "Reset Test" : "Restart Test"}
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              onClick={startTest}
+              size="lg"
+              className="bg-cyan-500 hover:bg-cyan-600 text-white font-semibold flex items-center gap-2 py-2 px-6 rounded-xl shadow-lg shadow-cyan-900/10 transition-all"
+            >
+              <RotateCcw className="w-4 h-4" />
+              {isActive ? "Reset Test" : "Restart Test"}
+            </Button>
+            {difficulty === "infinite" && isActive && (
+              <Button
+                onClick={endTest}
+                size="lg"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-2 py-2 px-6 rounded-xl shadow-lg shadow-emerald-950/10 transition-all"
+              >
+                <CheckCircle className="w-4 h-4" />
+                Finish Test
+              </Button>
+            )}
+          </div>
 
           <div className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
             <kbd className="px-1.5 py-0.5 bg-[#1b1b2a] border border-slate-800 rounded text-slate-400 font-mono text-[10px] shadow-sm">Tab</kbd>
