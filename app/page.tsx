@@ -211,7 +211,7 @@ const textSamples = {
   ]
 }
 
-type Difficulty = "short" | "medium" | "long"
+type Difficulty = "short" | "medium" | "long" | "custom"
 type KeyboardMode = "home" | "upper" | "lower" | "full" | "custom"
 type SwitchType = "blue" | "brown" | "red"
 
@@ -241,6 +241,7 @@ export default function TypingTest() {
   const [difficulty, setDifficulty] = useState<Difficulty>("medium")
   const [keyboardMode, setKeyboardMode] = useState<KeyboardMode>("full")
   const [customText, setCustomText] = useState("")
+  const [customDuration, setCustomDuration] = useState(45)
   const [currentText, setCurrentText] = useState("")
   const [userInput, setUserInput] = useState("")
   const [isActive, setIsActive] = useState(false)
@@ -302,8 +303,11 @@ export default function TypingTest() {
     const savedSettings = localStorage.getItem("a1typing-settings")
     const savedCustomText = localStorage.getItem("a1typing-custom-text")
 
+    const savedCustomDuration = localStorage.getItem("a1typing-custom-duration")
+
     if (savedHighScore) setHighScore(Number.parseInt(savedHighScore))
     if (savedCustomText) setCustomText(savedCustomText)
+    if (savedCustomDuration) setCustomDuration(Number.parseInt(savedCustomDuration))
     if (savedSettings) {
       try {
         const parsed = JSON.parse(savedSettings)
@@ -327,6 +331,18 @@ export default function TypingTest() {
     }
   }, [])
 
+  // Get active test duration based on difficulty setting
+  const getTestDuration = useCallback(() => {
+    if (difficulty === "custom") return customDuration
+    return difficultySettings[difficulty].duration
+  }, [difficulty, customDuration])
+
+  // Get target character count to generate based on difficulty setting
+  const getTargetChars = useCallback(() => {
+    if (difficulty === "custom") return Math.max(30, customDuration * 4)
+    return difficultySettings[difficulty].targetChars
+  }, [difficulty, customDuration])
+
   // Generate new text sample
   const generateNewText = useCallback(() => {
     let sourceList: string[] = []
@@ -346,7 +362,7 @@ export default function TypingTest() {
       if (!cleaned) {
         combined = "please paste your custom text in the box below to start the test"
       } else {
-        const targetChars = difficultySettings[difficulty].targetChars
+        const targetChars = getTargetChars()
         let repeated = cleaned
         while (repeated.length < targetChars) {
           repeated = repeated + " " + cleaned
@@ -370,7 +386,7 @@ export default function TypingTest() {
     }
 
     setCurrentText(combined)
-  }, [difficulty, keyboardMode, customText])
+  }, [difficulty, keyboardMode, customText, getTargetChars])
 
   // Mechanical Keyboard Sound Synthesizer using Web Audio API
   const playMechanicalClick = useCallback(
@@ -638,7 +654,7 @@ export default function TypingTest() {
     setUserInput("")
     setIsActive(false) // Wait for first keypress to activate timer
     setIsComplete(false)
-    setTimeLeft(difficultySettings[difficulty].duration)
+    setTimeLeft(getTestDuration())
     setWpm(0)
     setAccuracy(100)
     setCorrectChars(0)
@@ -654,7 +670,7 @@ export default function TypingTest() {
     setTimeout(() => {
       inputRef.current?.focus()
     }, 30)
-  }, [difficulty, generateNewText])
+  }, [difficulty, generateNewText, getTestDuration])
 
   // Trigger reset/restart when settings change or on mount
   useEffect(() => {
@@ -842,8 +858,8 @@ export default function TypingTest() {
     })
   }
 
-  const progressPercentage =
-    ((difficultySettings[difficulty].duration - timeLeft) / difficultySettings[difficulty].duration) * 100
+  const totalDuration = getTestDuration()
+  const progressPercentage = ((totalDuration - timeLeft) / totalDuration) * 100
 
   return (
     <div className="min-h-screen bg-[#09090d] text-[#e2e8f0] flex flex-col justify-between py-12 px-4 select-none">
@@ -974,14 +990,13 @@ export default function TypingTest() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pb-3 px-4">
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex gap-2 flex-wrap mb-3">
                 {Object.entries(difficultySettings).map(([key, setting]) => (
                   <Button
                     key={key}
                     variant={difficulty === key ? "default" : "outline"}
                     onClick={() => {
                       setDifficulty(key as Difficulty)
-                      setTimeLeft(setting.duration)
                     }}
                     disabled={isActive}
                     className={`transition-all py-1 px-3 text-[11px] font-semibold h-7 ${
@@ -993,7 +1008,51 @@ export default function TypingTest() {
                     {setting.label}
                   </Button>
                 ))}
+                <Button
+                  variant={difficulty === "custom" ? "default" : "outline"}
+                  onClick={() => {
+                    setDifficulty("custom")
+                  }}
+                  disabled={isActive}
+                  className={`transition-all py-1 px-3 text-[11px] font-semibold h-7 ${
+                    difficulty === "custom"
+                      ? "bg-cyan-500 hover:bg-cyan-600 text-white shadow-sm"
+                      : "border-slate-800 bg-[#0f0f15] hover:bg-slate-800 text-slate-300"
+                  }`}
+                >
+                  Custom
+                </Button>
               </div>
+
+              {difficulty === "custom" && (
+                <div className="mt-2.5 pt-2.5 border-t border-slate-800/60 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] text-slate-400">Custom Duration:</span>
+                    <span className="text-xs text-cyan-400 font-bold font-mono">{customDuration}s</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="5"
+                    max="300"
+                    step="5"
+                    value={customDuration}
+                    disabled={isActive}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value)
+                      setCustomDuration(val)
+                      localStorage.setItem("a1typing-custom-duration", val.toString())
+                    }}
+                    className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                  />
+                  <div className="flex justify-between text-[8px] text-slate-500 mt-0.5 font-mono">
+                    <span>5s</span>
+                    <span>60s</span>
+                    <span>120s</span>
+                    <span>180s</span>
+                    <span>300s</span>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 

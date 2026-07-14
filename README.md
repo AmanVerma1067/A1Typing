@@ -30,7 +30,7 @@ Innovative aura glowing effect surrounding the card that responds dynamically to
 
 ### ⏱️ Shortcut & Continuous Typing
 * **Tab-key Restart:** Press the `Tab` key at any point to instantly restart the test.
-* **Continuous Paragraph Engine:** Sentence pool dynamically scales to prevent text running out, supporting short (15s), medium (30s), and long (60s) duration settings.
+* **Continuous Paragraph Engine:** Sentence pool dynamically scales to prevent text running out, supporting short (15s), medium (30s), long (60s), and custom (5s to 300s range slider) duration settings.
 * **Legible Starting Words:** The text area is fully visible before typing starts, with a blinking start reminder at the bottom of the card.
 
 ---
