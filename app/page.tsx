@@ -4,12 +4,11 @@ import type React from "react"
 import { useState, useEffect, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import { Trophy, Timer, Target, Zap, Settings, BarChart3, Volume2, VolumeX, Keyboard, RotateCcw, CheckCircle } from "lucide-react"
+import { Trophy, Timer, Target, Settings, BarChart3, Volume2, VolumeX, Keyboard, RotateCcw, CheckCircle } from "lucide-react"
 import { PerformanceModal } from "@/components/performance-modal"
 import { ConfettiEffect } from "@/components/confetti-effect"
 
@@ -258,7 +257,6 @@ export default function TypingTest() {
   const [characterBreakdown, setCharacterBreakdown] = useState<
     Array<{ char: string; correct: boolean; timestamp: number }>
   >([])
-  const [currentTextIndex, setCurrentTextIndex] = useState(0)
   const [accumulatedCorrect, setAccumulatedCorrect] = useState(0)
   const [accumulatedTotal, setAccumulatedTotal] = useState(0)
   const [accumulatedBreakdown, setAccumulatedBreakdown] = useState<
@@ -274,6 +272,7 @@ export default function TypingTest() {
   })
 
   const inputRef = useRef<HTMLInputElement>(null)
+  const customTextareaRef = useRef<HTMLTextAreaElement>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const startTimeRef = useRef<number | null>(null)
@@ -302,7 +301,6 @@ export default function TypingTest() {
     const savedHighScore = localStorage.getItem("a1typing-highscore")
     const savedSettings = localStorage.getItem("a1typing-settings")
     const savedCustomText = localStorage.getItem("a1typing-custom-text")
-
     const savedCustomDuration = localStorage.getItem("a1typing-custom-duration")
 
     if (savedHighScore) setHighScore(Number.parseInt(savedHighScore))
@@ -372,11 +370,15 @@ export default function TypingTest() {
         combined = repeated
       }
     } else {
-      // Determine sentence count based on difficulty
+      // Determine sentence count based on difficulty. Scaled roughly at
+      // "1 sentence per ~5s of test time" to match the short/medium/long ratio,
+      // so custom and infinite durations don't run dry or over-fetch text.
       let count = 4
       if (difficulty === "short") count = 3
       else if (difficulty === "medium") count = 6
       else if (difficulty === "long") count = 12
+      else if (difficulty === "custom") count = Math.max(3, Math.round(customDuration / 5))
+      else if (difficulty === "infinite") count = 10
 
       const selected: string[] = []
       for (let i = 0; i < count; i++) {
@@ -388,7 +390,7 @@ export default function TypingTest() {
     }
 
     setCurrentText(combined)
-  }, [difficulty, keyboardMode, customText, getTargetChars])
+  }, [difficulty, keyboardMode, customText, customDuration, getTargetChars])
 
   // Mechanical Keyboard Sound Synthesizer using Web Audio API
   const playMechanicalClick = useCallback(
@@ -685,6 +687,15 @@ export default function TypingTest() {
     startTest()
   }, [startTest])
 
+  // When the user switches into Custom Text mode with nothing typed yet,
+  // send focus straight to the textarea instead of leaving them stuck on
+  // an unfocusable, disabled practice box.
+  useEffect(() => {
+    if (keyboardMode === "custom" && !customText.trim()) {
+      customTextareaRef.current?.focus()
+    }
+  }, [keyboardMode])
+
   const endTest = useCallback(() => {
     setIsActive(false)
     setIsComplete(true)
@@ -838,6 +849,7 @@ export default function TypingTest() {
 
   const flow = getFlowState(wpm)
   const timeCritical = difficulty !== "infinite" && isActive && timeLeft <= 5
+  const isCustomTextMissing = keyboardMode === "custom" && !customText.trim()
 
   const renderText = () => {
     return currentText.split("").map((char, index) => {
@@ -1039,7 +1051,7 @@ export default function TypingTest() {
                       : "border-slate-800 bg-[#0f0f15] hover:bg-slate-800 text-slate-300"
                   }`}
                 >
-                  Custom
+                  Custom Time
                 </Button>
                 <Button
                   variant={difficulty === "infinite" ? "default" : "outline"}
@@ -1079,9 +1091,9 @@ export default function TypingTest() {
                   />
                   <div className="flex justify-between text-[8px] text-slate-500 mt-0.5 font-mono">
                     <span>5s</span>
-                    <span>60s</span>
-                    <span>120s</span>
-                    <span>180s</span>
+                    <span>75s</span>
+                    <span>150s</span>
+                    <span>225s</span>
                     <span>300s</span>
                   </div>
                 </div>
@@ -1094,7 +1106,7 @@ export default function TypingTest() {
             <CardHeader className="py-3 px-4">
               <CardTitle className="text-xs font-semibold text-slate-400 flex items-center gap-2">
                 <Keyboard className="w-4 h-4 text-cyan-400" />
-                Keyboard Focus Category
+                Practice Text Source
               </CardTitle>
             </CardHeader>
             <CardContent className="pb-3 px-4">
@@ -1134,7 +1146,7 @@ export default function TypingTest() {
                     setCustomText("")
                     localStorage.removeItem("a1typing-custom-text")
                   }}
-                  className="h-6 text-[10px] text-red-400 hover:text-red-305 hover:bg-red-950/20 px-2"
+                  className="h-6 text-[10px] text-red-400 hover:text-red-300 hover:bg-red-950/20 px-2"
                 >
                   Clear Text
                 </Button>
@@ -1142,10 +1154,12 @@ export default function TypingTest() {
             </CardHeader>
             <CardContent className="pb-4 px-4">
               <textarea
+                ref={customTextareaRef}
                 value={customText}
                 onChange={handleCustomTextChange}
                 placeholder="Type or paste your custom text sample here..."
                 rows={3}
+                aria-label="Custom practice text"
                 className="w-full bg-[#0a0a12] border border-slate-800 rounded-xl p-3 text-sm text-slate-300 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 resize-none font-sans"
               />
               <div className="text-[10px] text-slate-500 mt-2 flex items-center gap-1.5 justify-between">
@@ -1207,7 +1221,9 @@ export default function TypingTest() {
           <div className="mb-6">
             <div className="w-full h-[3px] bg-[#0f0f15] rounded-full overflow-hidden">
               <div
-                className="h-full rounded-full transition-all duration-500 ease-linear"
+                className={`h-full rounded-full transition-all duration-500 ease-linear ${
+                  difficulty === "infinite" ? "animate-pulse" : ""
+                }`}
                 style={{
                   width: `${progressPercentage}%`,
                   background: `linear-gradient(90deg, #06b6d4, ${flow.color})`,
@@ -1219,10 +1235,18 @@ export default function TypingTest() {
 
         {/* Main Test Area with Flow State Glow */}
         <Card
-          className={`mb-4 bg-[#12121e] border-slate-800/60 transition-all duration-500 cursor-text select-none ${
-            isActive ? flow.class : ""
-          } ${isFocused && !isActive && !isComplete ? "ring-2 ring-cyan-500/40" : ""}`}
-          onClick={() => inputRef.current?.focus()}
+          className={`mb-4 bg-[#12121e] transition-all duration-500 select-none ${
+            isCustomTextMissing
+              ? "border-2 border-dashed border-slate-700/50 cursor-pointer"
+              : "border-slate-800/60 cursor-text"
+          } ${isActive ? flow.class : ""} ${isFocused && !isActive && !isComplete ? "ring-2 ring-cyan-500/40" : ""}`}
+          onClick={() => {
+            if (isCustomTextMissing) {
+              customTextareaRef.current?.focus()
+            } else {
+              inputRef.current?.focus()
+            }
+          }}
         >
           <CardContent className="p-5">
             {/* Header Status Row */}
@@ -1240,9 +1264,16 @@ export default function TypingTest() {
 
             {/* Passage Display */}
             <div className="p-5 bg-[#0a0a12] border border-slate-800/40 rounded-xl select-none whitespace-pre-wrap font-mono relative min-h-[160px] flex items-start">
-              <div className="w-full text-left">
-                {renderText()}
-              </div>
+              {isCustomTextMissing ? (
+                <div className="w-full flex flex-col items-center justify-center gap-2 py-8 text-slate-500 font-sans">
+                  <Settings className="w-5 h-5 text-slate-600" />
+                  <p className="text-sm text-center">Paste some text above to build your custom test</p>
+                </div>
+              ) : (
+                <div className="w-full text-left">
+                  {renderText()}
+                </div>
+              )}
 
               {/* Input covers the whole passage so a tap anywhere focuses it directly,
                   which is what reliably raises the on-screen keyboard on mobile. */}
@@ -1253,7 +1284,8 @@ export default function TypingTest() {
                 onChange={handleInputChange}
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-text"
+                disabled={isCustomTextMissing}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-text disabled:cursor-not-allowed"
                 autoComplete="off"
                 autoCapitalize="off"
                 autoCorrect="off"
@@ -1269,7 +1301,9 @@ export default function TypingTest() {
           <div className="text-center mb-4">
             <span className="text-slate-500 font-sans text-xs flex items-center justify-center gap-1.5 animate-pulse">
               <Keyboard className="w-3 h-3 text-cyan-500/60" />
-              Click the text area or start typing to begin...
+              {isCustomTextMissing
+                ? "Paste your custom text above to unlock this test..."
+                : "Click the text area or start typing to begin..."}
             </span>
           </div>
         )}
