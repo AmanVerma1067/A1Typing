@@ -212,7 +212,7 @@ const textSamples = {
 }
 
 type Difficulty = "short" | "medium" | "long"
-type KeyboardMode = "home" | "upper" | "lower" | "full"
+type KeyboardMode = "home" | "upper" | "lower" | "full" | "custom"
 type SwitchType = "blue" | "brown" | "red"
 
 interface TypingSettings {
@@ -240,6 +240,7 @@ const difficultySettings = {
 export default function TypingTest() {
   const [difficulty, setDifficulty] = useState<Difficulty>("medium")
   const [keyboardMode, setKeyboardMode] = useState<KeyboardMode>("full")
+  const [customText, setCustomText] = useState("")
   const [currentText, setCurrentText] = useState("")
   const [userInput, setUserInput] = useState("")
   const [isActive, setIsActive] = useState(false)
@@ -299,8 +300,10 @@ export default function TypingTest() {
   useEffect(() => {
     const savedHighScore = localStorage.getItem("a1typing-highscore")
     const savedSettings = localStorage.getItem("a1typing-settings")
+    const savedCustomText = localStorage.getItem("a1typing-custom-text")
 
     if (savedHighScore) setHighScore(Number.parseInt(savedHighScore))
+    if (savedCustomText) setCustomText(savedCustomText)
     if (savedSettings) {
       try {
         const parsed = JSON.parse(savedSettings)
@@ -330,25 +333,41 @@ export default function TypingTest() {
       sourceList = textSamples.upperRow
     } else if (keyboardMode === "lower") {
       sourceList = textSamples.lowerRow
-    } else {
+    } else if (keyboardMode === "full") {
       sourceList = textSamples.fullKeyboard
     }
 
-    // Determine sentence count based on difficulty
-    let count = 4
-    if (difficulty === "short") count = 3
-    else if (difficulty === "medium") count = 6
-    else if (difficulty === "long") count = 12
+    let combined = ""
+    if (keyboardMode === "custom") {
+      const cleaned = customText.trim()
+      if (!cleaned) {
+        combined = "please paste your custom text in the box below to start the test"
+      } else {
+        const targetChars = difficultySettings[difficulty].targetChars
+        let repeated = cleaned
+        while (repeated.length < targetChars) {
+          repeated = repeated + " " + cleaned
+        }
+        combined = repeated
+      }
+    } else {
+      // Determine sentence count based on difficulty
+      let count = 4
+      if (difficulty === "short") count = 3
+      else if (difficulty === "medium") count = 6
+      else if (difficulty === "long") count = 12
 
-    const selected: string[] = []
-    for (let i = 0; i < count; i++) {
-      const idx = Math.floor(Math.random() * sourceList.length)
-      selected.push(sourceList[idx])
+      const selected: string[] = []
+      for (let i = 0; i < count; i++) {
+        const idx = Math.floor(Math.random() * sourceList.length)
+        selected.push(sourceList[idx])
+      }
+
+      combined = selected.join(" ").toLowerCase()
     }
 
-    const combined = selected.join(" ").toLowerCase()
     setCurrentText(combined)
-  }, [difficulty, keyboardMode])
+  }, [difficulty, keyboardMode, customText])
 
   // Mechanical Keyboard Sound Synthesizer using Web Audio API
   const playMechanicalClick = useCallback(
@@ -739,6 +758,57 @@ export default function TypingTest() {
     }
   }
 
+  const handleCustomTextPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    e.preventDefault()
+    const pastedText = e.clipboardData.getData("text")
+    if (!pastedText) return
+
+    // Clean text sample wisely:
+    // 1. Convert to lowercase
+    let cleaned = pastedText.toLowerCase()
+    
+    // 2. Normalize smart quotes and special hyphens
+    cleaned = cleaned
+      .replace(/[\u201c\u201d]/g, '"')
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\u2013\u2014]/g, "-")
+    
+    // 3. Keep only lowercase letters, digits, basic punctuation (. , ? ! ' " -) and spaces
+    cleaned = cleaned.replace(/[^a-z0-9\s.,?!'"-]/g, "")
+    
+    // 4. Convert all whitespace (newlines, tabs, multiple spaces) to a single space
+    cleaned = cleaned.replace(/\s+/g, " ")
+    
+    // 5. Trim leading/trailing spaces
+    cleaned = cleaned.trim()
+
+    if (cleaned) {
+      setCustomText(cleaned)
+      localStorage.setItem("a1typing-custom-text", cleaned)
+    }
+  }
+
+  const handleCustomTextKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Allow paste shortcut (Ctrl+V / Cmd+V)
+    const isPaste = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v"
+    // Allow copy/select all shortcut (Ctrl+C / Ctrl+A)
+    const isCopy = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c"
+    const isSelectAll = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a"
+    
+    // Allow Backspace or Delete to clear
+    const isClear = e.key === "Backspace" || e.key === "Delete"
+    
+    if (isClear) {
+      setCustomText("")
+      localStorage.removeItem("a1typing-custom-text")
+      return
+    }
+
+    if (!isPaste && !isCopy && !isSelectAll && e.key !== "Tab") {
+      e.preventDefault()
+    }
+  }
+
   // Dynamic Flow State Glow calculations based on WPM
   const getFlowState = (wpmVal: number) => {
     if (wpmVal < 25) {
@@ -972,7 +1042,7 @@ export default function TypingTest() {
             </CardHeader>
             <CardContent className="pb-3 px-4">
               <div className="flex gap-1.5 flex-wrap">
-                {(["home", "upper", "lower", "full"] as const).map((mode) => (
+                {(["home", "upper", "lower", "full", "custom"] as const).map((mode) => (
                   <Button
                     key={mode}
                     variant={keyboardMode === mode ? "default" : "outline"}
@@ -984,13 +1054,55 @@ export default function TypingTest() {
                         : "border-slate-800 bg-[#0f0f15] hover:bg-slate-800 text-slate-300"
                     }`}
                   >
-                    {mode === "home" ? "Home Row" : mode === "upper" ? "Upper Row" : mode === "lower" ? "Lower Row" : "Full Keyboard"}
+                    {mode === "home" ? "Home Row" : mode === "upper" ? "Upper Row" : mode === "lower" ? "Lower Row" : mode === "full" ? "Full Keyboard" : "Custom Text"}
                   </Button>
                 ))}
               </div>
             </CardContent>
           </Card>
         </div>
+
+        {keyboardMode === "custom" && (
+          <Card className="bg-[#161622] border-slate-800 shadow-md mb-6 animate-in fade-in slide-in-from-top-4 duration-300">
+            <CardHeader className="py-3 px-4 flex flex-row items-center justify-between">
+              <CardTitle className="text-xs font-semibold text-slate-400 flex items-center gap-2">
+                <Settings className="w-4 h-4 text-cyan-400" />
+                Paste Custom Text Sample
+              </CardTitle>
+              {customText && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setCustomText("")
+                    localStorage.removeItem("a1typing-custom-text")
+                  }}
+                  className="h-6 text-[10px] text-red-400 hover:text-red-305 hover:bg-red-950/20 px-2"
+                >
+                  Clear Text
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent className="pb-4 px-4">
+              <textarea
+                value={customText}
+                onKeyDown={handleCustomTextKeyDown}
+                onPaste={handleCustomTextPaste}
+                placeholder="Right-click to Paste or use Ctrl+V / Cmd+V (Direct typing is disabled - please copy and paste the text)."
+                rows={3}
+                className="w-full bg-[#0a0a12] border border-slate-800 rounded-xl p-3 text-sm text-slate-300 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 resize-none font-sans"
+              />
+              <div className="text-[10px] text-slate-500 mt-2 flex items-center gap-1.5 justify-between">
+                <span>Copy the text you want, click the box, and paste it.</span>
+                {customText && (
+                  <span className="text-cyan-500 font-medium">
+                    Cleaned {customText.length} characters
+                  </span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Dynamic WPM Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -1059,7 +1171,7 @@ export default function TypingTest() {
             <div className="flex justify-between items-center mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-500">
               <span className="text-slate-400 font-sans flex items-center gap-1.5">
                 <Keyboard className="w-3.5 h-3.5 text-cyan-400" />
-                {keyboardMode === "home" ? "Home Row" : keyboardMode === "upper" ? "Upper Row" : keyboardMode === "lower" ? "Lower Row" : "Full Keyboard"}
+                {keyboardMode === "home" ? "Home Row" : keyboardMode === "upper" ? "Upper Row" : keyboardMode === "lower" ? "Lower Row" : keyboardMode === "full" ? "Full Keyboard" : "Custom Text"}
               </span>
               {isActive && (
                 <Badge className={`capitalize font-bold text-[10px] tracking-wider py-0.5 px-2.5 ${flow.bg} ${flow.text} border transition-all duration-500`}>
