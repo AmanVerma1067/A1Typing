@@ -12,7 +12,7 @@ Practice typing specific segments of the keyboard to build muscle memory:
 * **Upper Row Mode:** Focuses exclusively on keys: `q w e r t y u i o p`
 * **Lower Row Mode:** Focuses exclusively on keys: `z x c v b n m`
 * **Full Keyboard Mode:** Full, lowercase meaningful sentences and quotes.
-* **Custom Text Mode:** Allows copy-pasting custom text samples. The platform automatically converts all words to lowercase, resolves smart quotes, removes complex special characters wisely, and repeats the sample if it is shorter than the test duration. Direct typing inside the input box is blocked to guarantee correct copy-paste operations.
+* **Custom Text Mode:** Allows typing or copy-pasting custom text samples. The platform automatically converts all words to lowercase, resolves smart quotes, removes complex special characters wisely, and repeats the sample if it is shorter than the test duration.
 
 ### 🔊 Mechanical Keyboard Synthesizer
 Provides low-latency, Web Audio API-synthesized sound effects modeled after real mechanical switches:

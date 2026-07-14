@@ -308,6 +308,9 @@ export default function TypingTest() {
       try {
         const parsed = JSON.parse(savedSettings)
         if (!parsed.switchType) parsed.switchType = "blue"
+        if (parsed.soundVolume === undefined || parsed.soundVolume === 0.3) {
+          parsed.soundVolume = 1.0
+        }
         setSettings(parsed)
       } catch (e) {
         // use default settings
@@ -339,7 +342,7 @@ export default function TypingTest() {
 
     let combined = ""
     if (keyboardMode === "custom") {
-      const cleaned = customText.trim()
+      const cleaned = customText.replace(/\s+/g, " ").trim()
       if (!cleaned) {
         combined = "please paste your custom text in the box below to start the test"
       } else {
@@ -758,55 +761,17 @@ export default function TypingTest() {
     }
   }
 
-  const handleCustomTextPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    e.preventDefault()
-    const pastedText = e.clipboardData.getData("text")
-    if (!pastedText) return
-
-    // Clean text sample wisely:
-    // 1. Convert to lowercase
-    let cleaned = pastedText.toLowerCase()
-    
-    // 2. Normalize smart quotes and special hyphens
+  const handleCustomTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const text = e.target.value
+    let cleaned = text.toLowerCase()
     cleaned = cleaned
       .replace(/[\u201c\u201d]/g, '"')
       .replace(/[\u2018\u2019]/g, "'")
       .replace(/[\u2013\u2014]/g, "-")
-    
-    // 3. Keep only lowercase letters, digits, basic punctuation (. , ? ! ' " -) and spaces
-    cleaned = cleaned.replace(/[^a-z0-9\s.,?!'"-]/g, "")
-    
-    // 4. Convert all whitespace (newlines, tabs, multiple spaces) to a single space
-    cleaned = cleaned.replace(/\s+/g, " ")
-    
-    // 5. Trim leading/trailing spaces
-    cleaned = cleaned.trim()
+      .replace(/[^a-z0-9\s.,?!'"-]/g, "")
 
-    if (cleaned) {
-      setCustomText(cleaned)
-      localStorage.setItem("a1typing-custom-text", cleaned)
-    }
-  }
-
-  const handleCustomTextKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Allow paste shortcut (Ctrl+V / Cmd+V)
-    const isPaste = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v"
-    // Allow copy/select all shortcut (Ctrl+C / Ctrl+A)
-    const isCopy = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c"
-    const isSelectAll = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a"
-    
-    // Allow Backspace or Delete to clear
-    const isClear = e.key === "Backspace" || e.key === "Delete"
-    
-    if (isClear) {
-      setCustomText("")
-      localStorage.removeItem("a1typing-custom-text")
-      return
-    }
-
-    if (!isPaste && !isCopy && !isSelectAll && e.key !== "Tab") {
-      e.preventDefault()
-    }
+    setCustomText(cleaned)
+    localStorage.setItem("a1typing-custom-text", cleaned)
   }
 
   // Dynamic Flow State Glow calculations based on WPM
@@ -1086,14 +1051,13 @@ export default function TypingTest() {
             <CardContent className="pb-4 px-4">
               <textarea
                 value={customText}
-                onKeyDown={handleCustomTextKeyDown}
-                onPaste={handleCustomTextPaste}
-                placeholder="Right-click to Paste or use Ctrl+V / Cmd+V (Direct typing is disabled - please copy and paste the text)."
+                onChange={handleCustomTextChange}
+                placeholder="Type or paste your custom text sample here..."
                 rows={3}
                 className="w-full bg-[#0a0a12] border border-slate-800 rounded-xl p-3 text-sm text-slate-300 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 resize-none font-sans"
               />
               <div className="text-[10px] text-slate-500 mt-2 flex items-center gap-1.5 justify-between">
-                <span>Copy the text you want, click the box, and paste it.</span>
+                <span>Type or paste the text you want to be tested with.</span>
                 {customText && (
                   <span className="text-cyan-500 font-medium">
                     Cleaned {customText.length} characters
