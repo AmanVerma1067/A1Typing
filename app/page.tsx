@@ -274,6 +274,8 @@ export default function TypingTest() {
   const inputRef = useRef<HTMLInputElement>(null)
   const customTextareaRef = useRef<HTMLTextAreaElement>(null)
   const cardRef = useRef<HTMLDivElement>(null)
+  const passageContainerRef = useRef<HTMLDivElement>(null)
+  const activeCharRef = useRef<HTMLSpanElement>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const startTimeRef = useRef<number | null>(null)
@@ -322,6 +324,20 @@ export default function TypingTest() {
 
     document.documentElement.classList.add("dark")
   }, [])
+
+  // Auto scroll the passage container to keep the active line at the top
+  useEffect(() => {
+    if (activeCharRef.current && passageContainerRef.current) {
+      const activeEl = activeCharRef.current
+      const container = passageContainerRef.current
+      const activeTop = activeEl.offsetTop
+
+      container.scrollTo({
+        top: Math.max(0, activeTop - 16),
+        behavior: "smooth",
+      })
+    }
+  }, [userInput, currentText])
 
   // Initialize audio context
   useEffect(() => {
@@ -873,6 +889,7 @@ export default function TypingTest() {
       return (
         <span
           key={index}
+          ref={index === userInput.length ? activeCharRef : undefined}
           className={className}
         >
           {char}
@@ -1269,7 +1286,10 @@ export default function TypingTest() {
             </div>
 
             {/* Passage Display */}
-            <div className="p-5 bg-[#0a0a12] border border-slate-800/40 rounded-xl select-none whitespace-pre-wrap font-mono relative min-h-[160px] flex items-start">
+            <div
+              ref={passageContainerRef}
+              className="p-5 bg-[#0a0a12] border border-slate-800/40 rounded-xl select-none whitespace-pre-wrap font-mono relative h-[130px] overflow-y-auto scrollbar-none flex items-start"
+            >
               {isCustomTextMissing ? (
                 <div className="w-full flex flex-col items-center justify-center gap-2 py-8 text-slate-500 font-sans">
                   <Settings className="w-5 h-5 text-slate-600" />
