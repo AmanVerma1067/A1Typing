@@ -275,7 +275,20 @@ export default function TypingTest() {
   const customTextareaRef = useRef<HTMLTextAreaElement>(null)
   const cardRef = useRef<HTMLDivElement>(null)
   const passageContainerRef = useRef<HTMLDivElement>(null)
-  const activeCharRef = useRef<HTMLSpanElement>(null)
+
+  // Callback ref for the active character span — fires synchronously after
+  // React attaches it to the DOM, so scroll calculations are always accurate.
+  const activeCharCallbackRef = useCallback((node: HTMLSpanElement | null) => {
+    if (node && passageContainerRef.current) {
+      const container = passageContainerRef.current
+      // node.offsetTop is relative to the offsetParent (our container,
+      // which has position:relative). Subtract the container's CSS
+      // padding-top (p-5 = 20px) so line 1 maps to scrollTop 0 and each
+      // subsequent line scrolls smoothly to the top of the visible area.
+      const PADDING_TOP = 20
+      container.scrollTop = Math.max(0, node.offsetTop - PADDING_TOP)
+    }
+  }, [])
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const startTimeRef = useRef<number | null>(null)
@@ -325,22 +338,7 @@ export default function TypingTest() {
     document.documentElement.classList.add("dark")
   }, [])
 
-  // Auto scroll the passage container to keep the active line at the top
-  useEffect(() => {
-    if (activeCharRef.current && passageContainerRef.current) {
-      const activeEl = activeCharRef.current
-      const container = passageContainerRef.current
 
-      const containerRect = container.getBoundingClientRect()
-      const activeRect = activeEl.getBoundingClientRect()
-      const relativeTop = activeRect.top - containerRect.top + container.scrollTop
-
-      container.scrollTo({
-        top: Math.max(0, relativeTop - 20),
-        behavior: "auto",
-      })
-    }
-  }, [userInput, currentText])
 
   // Initialize audio context
   useEffect(() => {
@@ -890,7 +888,7 @@ export default function TypingTest() {
       return (
         <span
           key={index}
-          ref={index === userInput.length ? activeCharRef : undefined}
+          ref={index === userInput.length ? activeCharCallbackRef : undefined}
           className={className}
         >
           {char}
@@ -1288,7 +1286,7 @@ export default function TypingTest() {
             {/* Passage Display */}
             <div
               ref={passageContainerRef}
-              className="p-5 bg-[#0a0a12] border border-slate-800/40 rounded-xl select-none whitespace-pre-wrap font-mono relative h-[180px] overflow-y-auto scrollbar-none flex items-start"
+              className="p-5 bg-[#0a0a12] border border-slate-800/40 rounded-xl select-none whitespace-pre-wrap font-mono relative h-[180px] overflow-y-auto scrollbar-none"
             >
               {isCustomTextMissing ? (
                 <div className="w-full flex flex-col items-center justify-center gap-2 py-8 text-slate-500 font-sans">
@@ -1300,9 +1298,11 @@ export default function TypingTest() {
                   {renderText()}
                 </div>
               )}
+            </div>
 
-              {/* Placement at top-left with preventScroll keeps focusing behavior aligned 
-                  with the top of the viewport instead of scrolling natively to center/bottom */}
+            {/* Hidden input lives OUTSIDE the scrollable container so the
+                browser's native focus-scroll doesn't reset scrollTop to 0 */}
+            <div className="h-0 overflow-hidden">
               <input
                 ref={inputRef}
                 type="text"
@@ -1313,7 +1313,7 @@ export default function TypingTest() {
                 }}
                 onBlur={() => setIsFocused(false)}
                 disabled={isCustomTextMissing}
-                className="absolute left-0 top-0 w-1 h-1 opacity-0 pointer-events-none disabled:cursor-not-allowed"
+                className="opacity-0 w-0 h-0 border-0 p-0 m-0"
                 autoComplete="off"
                 autoCapitalize="off"
                 autoCorrect="off"
