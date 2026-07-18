@@ -273,6 +273,7 @@ export default function TypingTest() {
 
   const inputRef = useRef<HTMLInputElement>(null)
   const customTextareaRef = useRef<HTMLTextAreaElement>(null)
+  const cardRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const startTimeRef = useRef<number | null>(null)
@@ -678,7 +679,9 @@ export default function TypingTest() {
     setShowConfetti(false)
 
     setTimeout(() => {
-      inputRef.current?.focus()
+      inputRef.current?.focus({ preventScroll: true })
+      // Scroll the card to the top of the viewport when restarting/starting the test
+      cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
     }, 30)
   }, [difficulty, generateNewText, getTestDuration])
 
@@ -692,7 +695,7 @@ export default function TypingTest() {
   // an unfocusable, disabled practice box.
   useEffect(() => {
     if (keyboardMode === "custom" && !customText.trim()) {
-      customTextareaRef.current?.focus()
+      customTextareaRef.current?.focus({ preventScroll: true })
     }
   }, [keyboardMode])
 
@@ -1235,6 +1238,8 @@ export default function TypingTest() {
 
         {/* Main Test Area with Flow State Glow */}
         <Card
+          ref={cardRef}
+          style={{ scrollMarginTop: "24px" }}
           className={`mb-4 bg-[#12121e] transition-all duration-500 select-none ${
             isCustomTextMissing
               ? "border-2 border-dashed border-slate-700/50 cursor-pointer"
@@ -1244,7 +1249,8 @@ export default function TypingTest() {
             if (isCustomTextMissing) {
               customTextareaRef.current?.focus()
             } else {
-              inputRef.current?.focus()
+              inputRef.current?.focus({ preventScroll: true })
+              cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
             }
           }}
         >
@@ -1275,17 +1281,20 @@ export default function TypingTest() {
                 </div>
               )}
 
-              {/* Input covers the whole passage so a tap anywhere focuses it directly,
-                  which is what reliably raises the on-screen keyboard on mobile. */}
+              {/* Placement at top-left with preventScroll keeps focusing behavior aligned 
+                  with the top of the viewport instead of scrolling natively to center/bottom */}
               <input
                 ref={inputRef}
                 type="text"
                 value={userInput}
                 onChange={handleInputChange}
-                onFocus={() => setIsFocused(true)}
+                onFocus={() => {
+                  setIsFocused(true)
+                  cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+                }}
                 onBlur={() => setIsFocused(false)}
                 disabled={isCustomTextMissing}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-text disabled:cursor-not-allowed"
+                className="absolute left-0 top-0 w-1 h-1 opacity-0 pointer-events-none disabled:cursor-not-allowed"
                 autoComplete="off"
                 autoCapitalize="off"
                 autoCorrect="off"
