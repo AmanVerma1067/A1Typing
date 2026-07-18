@@ -1301,8 +1301,16 @@ export default function TypingTest() {
             </div>
 
             {/* Hidden input lives OUTSIDE the scrollable container so the
-                browser's native focus-scroll doesn't reset scrollTop to 0 */}
-            <div className="h-0 overflow-hidden">
+                browser's native focus-scroll doesn't reset scrollTop to 0.
+                IMPORTANT: it must still render with a non-zero size and must
+                NOT sit inside an overflow:hidden/zero-height ancestor —
+                mobile browsers (iOS Safari, Android Chrome) refuse to raise
+                the on-screen keyboard for an input that is clipped to 0px,
+                treating it the same as display:none. Using a 1x1px
+                absolutely-positioned input (out of normal flow, so it still
+                takes up no visible layout space) keeps it "real" enough for
+                mobile keyboards while remaining invisible. */}
+            <div className="relative h-0 overflow-visible">
               <input
                 ref={inputRef}
                 type="text"
@@ -1313,7 +1321,7 @@ export default function TypingTest() {
                 }}
                 onBlur={() => setIsFocused(false)}
                 disabled={isCustomTextMissing}
-                className="opacity-0 w-0 h-0 border-0 p-0 m-0"
+                className="absolute left-0 top-0 w-px h-px opacity-0 pointer-events-none border-0 p-0 m-0 disabled:cursor-not-allowed"
                 autoComplete="off"
                 autoCapitalize="off"
                 autoCorrect="off"
