@@ -330,11 +330,14 @@ export default function TypingTest() {
     if (activeCharRef.current && passageContainerRef.current) {
       const activeEl = activeCharRef.current
       const container = passageContainerRef.current
-      const activeTop = activeEl.offsetTop
+
+      const containerRect = container.getBoundingClientRect()
+      const activeRect = activeEl.getBoundingClientRect()
+      const relativeTop = activeRect.top - containerRect.top + container.scrollTop
 
       container.scrollTo({
-        top: Math.max(0, activeTop - 16),
-        behavior: "smooth",
+        top: Math.max(0, relativeTop - 20),
+        behavior: "auto",
       })
     }
   }, [userInput, currentText])
@@ -696,8 +699,6 @@ export default function TypingTest() {
 
     setTimeout(() => {
       inputRef.current?.focus({ preventScroll: true })
-      // Scroll the card to the top of the viewport when restarting/starting the test
-      cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
     }, 30)
   }, [difficulty, generateNewText, getTestDuration])
 
@@ -917,7 +918,7 @@ export default function TypingTest() {
       {/* Confetti celebration */}
       {showConfetti && <ConfettiEffect />}
 
-      <div className="container mx-auto max-w-4xl flex-1 flex flex-col justify-center">
+      <div className="container mx-auto max-w-5xl flex-1 flex flex-col justify-center">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-3">
@@ -1267,7 +1268,6 @@ export default function TypingTest() {
               customTextareaRef.current?.focus()
             } else {
               inputRef.current?.focus({ preventScroll: true })
-              cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
             }
           }}
         >
@@ -1288,7 +1288,7 @@ export default function TypingTest() {
             {/* Passage Display */}
             <div
               ref={passageContainerRef}
-              className="p-5 bg-[#0a0a12] border border-slate-800/40 rounded-xl select-none whitespace-pre-wrap font-mono relative h-[130px] overflow-y-auto scrollbar-none flex items-start"
+              className="p-5 bg-[#0a0a12] border border-slate-800/40 rounded-xl select-none whitespace-pre-wrap font-mono relative h-[180px] overflow-y-auto scrollbar-none flex items-start"
             >
               {isCustomTextMissing ? (
                 <div className="w-full flex flex-col items-center justify-center gap-2 py-8 text-slate-500 font-sans">
@@ -1310,7 +1310,6 @@ export default function TypingTest() {
                 onChange={handleInputChange}
                 onFocus={() => {
                   setIsFocused(true)
-                  cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
                 }}
                 onBlur={() => setIsFocused(false)}
                 disabled={isCustomTextMissing}
