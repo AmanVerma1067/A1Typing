@@ -696,7 +696,13 @@ export default function TypingTest() {
     setShowConfetti(false)
 
     setTimeout(() => {
-      inputRef.current?.focus({ preventScroll: true })
+      // Don't steal focus away from the custom-text textarea — startTest()
+      // re-runs on every keystroke there (since editing customText
+      // regenerates the practice passage), so without this guard the
+      // cursor would keep jumping out of the box mid-sentence.
+      if (document.activeElement !== customTextareaRef.current) {
+        inputRef.current?.focus({ preventScroll: true })
+      }
     }, 30)
   }, [difficulty, generateNewText, getTestDuration])
 
@@ -747,7 +753,9 @@ export default function TypingTest() {
   // so Tab can move focus between dialog controls as expected)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Tab" && !settingsOpen) {
+      // Also skip while the user is typing/pasting in the custom-text box —
+      // Tab there is normal field navigation, not a request to restart.
+      if (e.key === "Tab" && !settingsOpen && document.activeElement !== customTextareaRef.current) {
         e.preventDefault()
         startTest()
       }
@@ -918,27 +926,27 @@ export default function TypingTest() {
 
       <div className="container mx-auto max-w-5xl flex-1 flex flex-col justify-center">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-cyan-900/20">
-              <Keyboard className="w-6 h-6 text-white" />
+        <div className="flex flex-wrap justify-between items-center gap-3 mb-8">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-cyan-900/20 shrink-0">
+              <Keyboard className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-extrabold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent tracking-tight">
+              <h1 className="text-2xl sm:text-3xl font-extrabold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent tracking-tight">
                 A1Typing
               </h1>
             </div>
-            <Badge variant="outline" className="border-slate-800 text-slate-400 text-xs">
+            <Badge variant="outline" className="border-slate-800 text-slate-400 text-xs hidden sm:inline-flex">
               v1.0
             </Badge>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             {highScore > 0 && (
-              <Badge className="bg-slate-900/60 border border-slate-800 flex items-center gap-1.5 py-1 px-3 shadow-md">
-                <Trophy className="w-4 h-4 text-yellow-500" />
-                <span className="text-slate-300 font-medium">High Score:</span>
-                <span className="text-yellow-400 font-bold">{highScore} WPM</span>
+              <Badge className="bg-slate-900/60 border border-slate-800 flex items-center gap-1.5 py-1 px-2.5 sm:px-3 shadow-md">
+                <Trophy className="w-4 h-4 text-yellow-500 shrink-0" />
+                <span className="text-slate-300 font-medium hidden sm:inline">High Score:</span>
+                <span className="text-yellow-400 font-bold whitespace-nowrap">{highScore} WPM</span>
               </Badge>
             )}
 
@@ -947,7 +955,7 @@ export default function TypingTest() {
               variant="outline"
               size="icon"
               onClick={() => updateSettings({ audioEnabled: !settings.audioEnabled })}
-              className="border-slate-800 bg-[#161622] hover:bg-slate-800 text-slate-400 transition-colors"
+              className="border-slate-800 bg-[#161622] hover:bg-slate-800 text-slate-400 transition-colors touch-manipulation shrink-0"
               aria-label={settings.audioEnabled ? "Mute keyboard sounds" : "Unmute keyboard sounds"}
               title={settings.audioEnabled ? "Mute keyboard sounds" : "Unmute keyboard sounds"}
             >
@@ -957,7 +965,7 @@ export default function TypingTest() {
             {/* Settings Dialog */}
             <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="icon" className="border-slate-800 bg-[#161622] hover:bg-slate-800 text-slate-400 transition-colors">
+                <Button variant="outline" size="icon" className="border-slate-800 bg-[#161622] hover:bg-slate-800 text-slate-400 transition-colors touch-manipulation shrink-0">
                   <Settings className="w-4 h-4" />
                 </Button>
               </DialogTrigger>
@@ -1049,7 +1057,7 @@ export default function TypingTest() {
                       setDifficulty(key as Difficulty)
                     }}
                     disabled={isActive}
-                    className={`transition-all py-1 px-3 text-[11px] font-semibold h-7 ${
+                    className={`transition-all py-1.5 px-3 text-[11px] font-semibold h-8 touch-manipulation ${
                       difficulty === key
                         ? "bg-cyan-500 hover:bg-cyan-600 text-white shadow-sm"
                         : "border-slate-800 bg-[#0f0f15] hover:bg-slate-800 text-slate-300"
@@ -1064,7 +1072,7 @@ export default function TypingTest() {
                     setDifficulty("custom")
                   }}
                   disabled={isActive}
-                  className={`transition-all py-1 px-3 text-[11px] font-semibold h-7 ${
+                  className={`transition-all py-1.5 px-3 text-[11px] font-semibold h-8 touch-manipulation ${
                     difficulty === "custom"
                       ? "bg-cyan-500 hover:bg-cyan-600 text-white shadow-sm"
                       : "border-slate-800 bg-[#0f0f15] hover:bg-slate-800 text-slate-300"
@@ -1078,7 +1086,7 @@ export default function TypingTest() {
                     setDifficulty("infinite")
                   }}
                   disabled={isActive}
-                  className={`transition-all py-1 px-3 text-[11px] font-semibold h-7 ${
+                  className={`transition-all py-1.5 px-3 text-[11px] font-semibold h-8 touch-manipulation ${
                     difficulty === "infinite"
                       ? "bg-cyan-500 hover:bg-cyan-600 text-white shadow-sm"
                       : "border-slate-800 bg-[#0f0f15] hover:bg-slate-800 text-slate-300"
@@ -1136,7 +1144,7 @@ export default function TypingTest() {
                     variant={keyboardMode === mode ? "default" : "outline"}
                     onClick={() => setKeyboardMode(mode)}
                     disabled={isActive}
-                    className={`transition-all py-1 px-2.5 text-[11px] font-semibold h-7 capitalize ${
+                    className={`transition-all py-1.5 px-2.5 text-[11px] font-semibold h-8 touch-manipulation capitalize ${
                       keyboardMode === mode
                         ? "bg-cyan-500 hover:bg-cyan-600 text-white shadow-sm"
                         : "border-slate-800 bg-[#0f0f15] hover:bg-slate-800 text-slate-300"
@@ -1161,11 +1169,12 @@ export default function TypingTest() {
                 <Button
                   variant="ghost"
                   size="sm"
+                  disabled={isActive}
                   onClick={() => {
                     setCustomText("")
                     localStorage.removeItem("a1typing-custom-text")
                   }}
-                  className="h-6 text-[10px] text-red-400 hover:text-red-300 hover:bg-red-950/20 px-2"
+                  className="h-6 text-[10px] text-red-400 hover:text-red-300 hover:bg-red-950/20 px-2 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Clear Text
                 </Button>
@@ -1176,10 +1185,11 @@ export default function TypingTest() {
                 ref={customTextareaRef}
                 value={customText}
                 onChange={handleCustomTextChange}
+                disabled={isActive}
                 placeholder="Type or paste your custom text sample here..."
                 rows={3}
                 aria-label="Custom practice text"
-                className="w-full bg-[#0a0a12] border border-slate-800 rounded-xl p-3 text-sm text-slate-300 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 resize-none font-sans"
+                className="w-full bg-[#0a0a12] border border-slate-800 rounded-xl p-3 text-[16px] sm:text-sm text-slate-300 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 resize-none font-sans disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <div className="text-[10px] text-slate-500 mt-2 flex items-center gap-1.5 justify-between">
                 <span>Type or paste the text you want to be tested with.</span>
@@ -1256,7 +1266,7 @@ export default function TypingTest() {
         <Card
           ref={cardRef}
           style={{ scrollMarginTop: "24px" }}
-          className={`mb-4 bg-[#12121e] transition-all duration-500 select-none ${
+          className={`mb-4 bg-[#12121e] transition-all duration-500 select-none touch-manipulation ${
             isCustomTextMissing
               ? "border-2 border-dashed border-slate-700/50 cursor-pointer"
               : "border-slate-800/60 cursor-text"
@@ -1322,6 +1332,7 @@ export default function TypingTest() {
                 onBlur={() => setIsFocused(false)}
                 disabled={isCustomTextMissing}
                 className="absolute left-0 top-0 w-px h-px opacity-0 pointer-events-none border-0 p-0 m-0 disabled:cursor-not-allowed"
+                style={{ fontSize: 16 }}
                 autoComplete="off"
                 autoCapitalize="off"
                 autoCorrect="off"
@@ -1339,7 +1350,7 @@ export default function TypingTest() {
               <Keyboard className="w-3 h-3 text-cyan-500/60" />
               {isCustomTextMissing
                 ? "Paste your custom text above to unlock this test..."
-                : "Click the text area or start typing to begin..."}
+                : "Tap the text area or start typing to begin..."}
             </span>
           </div>
         )}
@@ -1350,7 +1361,7 @@ export default function TypingTest() {
             <Button
               onClick={startTest}
               size="lg"
-              className="bg-cyan-500 hover:bg-cyan-600 text-white font-semibold flex items-center gap-2 py-2 px-6 rounded-xl shadow-lg shadow-cyan-900/10 transition-all"
+              className="bg-cyan-500 hover:bg-cyan-600 text-white font-semibold flex items-center gap-2 py-2 px-6 rounded-xl shadow-lg shadow-cyan-900/10 transition-all touch-manipulation"
             >
               <RotateCcw className="w-4 h-4" />
               {isActive ? "Reset Test" : "Restart Test"}
@@ -1359,7 +1370,7 @@ export default function TypingTest() {
               <Button
                 onClick={endTest}
                 size="lg"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-2 py-2 px-6 rounded-xl shadow-lg shadow-emerald-950/10 transition-all"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-2 py-2 px-6 rounded-xl shadow-lg shadow-emerald-950/10 transition-all touch-manipulation"
               >
                 <CheckCircle className="w-4 h-4" />
                 Finish Test
@@ -1367,7 +1378,7 @@ export default function TypingTest() {
             )}
           </div>
 
-          <div className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+          <div className="text-xs text-slate-500 mt-1 hidden sm:flex items-center gap-1.5">
             <kbd className="px-1.5 py-0.5 bg-[#1b1b2a] border border-slate-800 rounded text-slate-400 font-mono text-[10px] shadow-sm">Tab</kbd>
             <span>key resets and restarts instantly</span>
           </div>
